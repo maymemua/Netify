@@ -313,16 +313,6 @@
     catch (e) { ta.select(); backupMsg("Không tự sao chép được. Đã chọn sẵn nội dung, hãy nhấn Ctrl/Cmd+C."); }
   });
 
-  $("backup-download").addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "po-questions-" + new Date().toISOString().slice(0, 10) + ".json";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    backupMsg("Nếu trình duyệt không tải được file, hãy dùng nút Sao chép.");
-  });
-
   $("backup-file").addEventListener("click", () => $("file-import").click());
   $("file-import").addEventListener("change", async (e) => {
     const file = e.target.files[0];
