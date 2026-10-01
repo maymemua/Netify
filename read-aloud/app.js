@@ -85,6 +85,7 @@
   }
   function updateHint() {
     hintTarget = null;
+    let noVoiceMsg = '';
     const text = els.editor.value;
     const v = currentVoice();
     if (v && text.trim().length >= 20) {
@@ -94,13 +95,17 @@
       if (viChars >= 3 && !voiceIsVi && bestVoice('vi')) {
         hintTarget = bestVoice('vi');
         els.hintText.textContent = 'This text looks Vietnamese, but the selected voice is not.';
+      } else if (viChars >= 3 && !voiceIsVi) {
+        noVoiceMsg = 'No Vietnamese voice found in this browser. Microsoft Edge includes Natural Vietnamese voices (HoaiMy, NamMinh); on Windows you can also add one under Settings → Time & language → Speech.';
       } else if (asciiOnly && voiceIsVi && bestVoice('en')) {
         hintTarget = bestVoice('en');
         els.hintText.textContent = 'This text looks English, but a Vietnamese voice is selected.';
       }
     }
     if (hintTarget) els.hintBtn.textContent = `Use ${shortName(hintTarget)}`;
-    els.hint.hidden = !hintTarget;
+    if (noVoiceMsg) els.hintText.textContent = noVoiceMsg;
+    els.hintBtn.hidden = !hintTarget;
+    els.hint.hidden = !hintTarget && !noVoiceMsg;
   }
   els.hintBtn.addEventListener('click', () => {
     if (!hintTarget) return;
