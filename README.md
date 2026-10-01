@@ -7,3 +7,5 @@ Practice app for PO interview questions (Lending: cash loan / BNPL). Open `index
 
 Data lives in the browser's `localStorage`, so use *Xuất JSON* to back it up or move to another device.
 The seed questions come from the Notion page "Bộ câu hỏi phỏng vấn PO Lending (Cash loan / BNPL)" (`questions.js`).
+
+Also in this repo: [`read-aloud/`](read-aloud/) – paste text and have the browser read it out loud (Web Speech API, works best in Edge).

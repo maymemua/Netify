@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Read Aloud</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Read Aloud</h1>
+    <span id="engine-note" class="muted"></span>
+  </header>
+
+  <main>
+    <div id="unsupported" class="notice" hidden>
+      This browser has no speech synthesis support. Try Microsoft Edge, Chrome or Safari.
+    </div>
+
+    <section class="panel controls">
+      <label class="grow">Voice
+        <select id="voice"></select>
+      </label>
+      <label>Speed <output id="rate-out">1.0×</output>
+        <input id="rate" type="range" min="0.5" max="3" step="0.1" value="1">
+      </label>
+      <label>Pitch <output id="pitch-out">1.0</output>
+        <input id="pitch" type="range" min="0" max="2" step="0.1" value="1">
+      </label>
+      <label>Volume <output id="volume-out">100%</output>
+        <input id="volume" type="range" min="0" max="1" step="0.05" value="1">
+      </label>
+    </section>
+
+    <div id="lang-hint" class="notice" hidden>
+      <span id="lang-hint-text"></span>
+      <button id="lang-hint-btn" class="ghost small"></button>
+    </div>
+
+    <section class="panel stage">
+      <textarea id="editor" spellcheck="false" placeholder="Paste or type text here, then press Play…"></textarea>
+      <div id="reader" class="reader" hidden tabindex="0" aria-live="off"></div>
+      <div class="stage-foot muted">
+        <span id="count"></span>
+        <span id="status"></span>
+      </div>
+    </section>
+
+    <section class="row transport">
+      <button id="btn-prev" class="ghost" title="Previous sentence (←)">⏮</button>
+      <button id="btn-play" class="primary" title="Play / Pause (Space)">▶ Play</button>
+      <button id="btn-next" class="ghost" title="Next sentence (→)">⏭</button>
+      <button id="btn-stop" class="ghost" title="Stop and edit (Esc)">⏹ Stop</button>
+      <div class="spacer"></div>
+      <button id="btn-paste" class="ghost" title="Paste from clipboard">📋 Paste</button>
+      <button id="btn-clear" class="ghost">Clear</button>
+    </section>
+
+    <p class="muted tip">
+      While playing, click any word to jump there. Shortcuts (when not typing): Space play/pause, ← / → sentence, Esc stop.
+    </p>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
