@@ -9,6 +9,10 @@
 <body>
   <header class="topbar">
     <h1>PO Interview Juggler</h1>
+    <div class="lang" role="group" aria-label="Language">
+      <button class="lang-btn" data-lang="vi" aria-pressed="true">VI</button>
+      <button class="lang-btn" data-lang="en" aria-pressed="false">EN</button>
+    </div>
     <nav class="tabs" role="tablist">
       <button class="tab active" data-view="practice" role="tab">Luyện tập</button>
       <button class="tab" data-view="manage" role="tab">Quản lý câu hỏi</button>
@@ -102,6 +106,18 @@
       <label class="field"><span>Trả lời nháp / ghi chú</span>
         <textarea id="f-draft" rows="6"></textarea>
       </label>
+      <details class="en-fields">
+        <summary>Bản tiếng Anh (English version)</summary>
+        <label class="field"><span>Question (EN)</span>
+          <textarea id="f-en-question" rows="2"></textarea>
+        </label>
+        <label class="field"><span>Hint (EN)</span>
+          <textarea id="f-en-hint" rows="2"></textarea>
+        </label>
+        <label class="field"><span>Draft answer / notes (EN)</span>
+          <textarea id="f-en-draft" rows="5"></textarea>
+        </label>
+      </details>
       <div class="row">
         <button type="button" id="dlg-delete" class="ghost danger">Xoá</button>
         <div class="spacer"></div>
@@ -136,6 +152,7 @@
   </dialog>
 
   <script src="questions.js"></script>
+  <script src="questions.en.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

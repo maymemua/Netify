@@ -2,21 +2,36 @@
   "use strict";
 
   const STORAGE_KEY = "po-juggler-v1";
+  const LANG_KEY = "po-juggler-lang";
   const $ = (id) => document.getElementById(id);
 
   // ---------- state ----------
   let state = load();
 
-  function seedState() {
-    return { questions: window.SEED_QUESTIONS.map((q) => ({ ...q })), answers: {} };
+  function withEn(q) {
+    const en = window.SEED_EN && window.SEED_EN[q.id];
+    return en && !q.en ? { ...q, en: { ...en } } : q;
   }
+
+  function seedState() {
+    return { questions: window.SEED_QUESTIONS.map((q) => withEn({ ...q })), answers: {} };
+  }
+
+  // ---------- language (vi | en) ----------
+  let lang = "vi";
+  try { if (localStorage.getItem(LANG_KEY) === "en") lang = "en"; } catch (e) { /* default vi */ }
+  const L = (q, field) => (lang === "en" && q.en && q.en[field]) || q[field] || "";
+  const catLabel = (c) => (lang === "en" && window.CATEGORY_EN && window.CATEGORY_EN[c]) || c;
 
   function load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const s = JSON.parse(raw);
-        if (s && Array.isArray(s.questions) && s.answers && typeof s.answers === "object") return s;
+        if (s && Array.isArray(s.questions) && s.answers && typeof s.answers === "object") {
+          s.questions = s.questions.map(withEn);
+          return s;
+        }
       }
     } catch (e) { /* fall through to seed */ }
     return seedState();
@@ -105,10 +120,10 @@
     $("btn-next").disabled = !deck.length;
     if (!q) return;
 
-    $("card-category").textContent = q.category;
-    $("card-question").textContent = q.question;
-    $("card-hint").textContent = q.hint || "—";
-    $("card-draft").textContent = q.draft || "—";
+    $("card-category").textContent = catLabel(q.category);
+    $("card-question").textContent = L(q, "question");
+    $("card-hint").textContent = L(q, "hint") || "—";
+    $("card-draft").textContent = L(q, "draft") || "—";
     $("answer").value = answerOf(q.id).text;
     $("reveal").hidden = true;
     $("btn-reveal").textContent = "Xem gợi ý & trả lời nháp";
@@ -179,7 +194,7 @@
     const sel = $("filter-category");
     const keep = sel.value || "all";
     sel.replaceChildren(new Option("Tất cả nhóm", "all"));
-    cats.forEach((c) => sel.append(new Option(c, c)));
+    cats.forEach((c) => sel.append(new Option(catLabel(c), c)));
     sel.value = cats.includes(keep) ? keep : "all";
     $("category-list").replaceChildren(...cats.map((c) => new Option(c)));
   }
@@ -188,7 +203,7 @@
   function renderList() {
     const term = $("search").value.trim().toLowerCase();
     const items = state.questions.filter((q) =>
-      !term || (q.question + " " + q.category + " " + q.draft + " " + q.hint).toLowerCase().includes(term));
+      !term || ([q.question, q.category, q.draft, q.hint, q.en && q.en.question, q.en && q.en.draft].join(" ")).toLowerCase().includes(term));
     $("manage-count").textContent = `${items.length} / ${state.questions.length} câu hỏi`;
     const ul = $("question-list");
     ul.replaceChildren();
@@ -199,12 +214,12 @@
       body.className = "body";
       const p = document.createElement("p");
       p.className = "q";
-      p.textContent = q.question;
+      p.textContent = L(q, "question");
       const meta = document.createElement("div");
       meta.className = "meta";
       const cat = document.createElement("span");
       cat.className = "chip";
-      cat.textContent = q.category;
+      cat.textContent = catLabel(q.category);
       const st = statusOf(q.id);
       const stChip = document.createElement("span");
       stChip.className = "chip status " + st;
@@ -246,6 +261,9 @@
     $("f-question").value = q ? q.question : "";
     $("f-hint").value = q ? q.hint : "";
     $("f-draft").value = q ? q.draft : "";
+    $("f-en-question").value = q && q.en ? q.en.question || "" : "";
+    $("f-en-hint").value = q && q.en ? q.en.hint || "" : "";
+    $("f-en-draft").value = q && q.en ? q.en.draft || "" : "";
     $("dlg-delete").hidden = !q;
     dlg.showModal();
     $("f-question").focus();
@@ -263,6 +281,12 @@
       draft: $("f-draft").value.trim(),
     };
     if (!data.category || !data.question) return;
+    const en = {
+      question: $("f-en-question").value.trim(),
+      hint: $("f-en-hint").value.trim(),
+      draft: $("f-en-draft").value.trim(),
+    };
+    if (en.question || en.hint || en.draft) data.en = en; else data.en = undefined;
     flushAnswer();
     let focusId;
     if (editingId) {
@@ -330,7 +354,7 @@
     backupDlg.close();
     if (!(await askConfirm(`Nhập ${s.questions.length} câu hỏi? Dữ liệu hiện tại sẽ bị thay thế.`))) return;
     state = {
-      questions: s.questions.map((q) => ({ id: q.id, category: q.category, question: q.question, hint: q.hint || "", draft: q.draft || "" })),
+      questions: s.questions.map((q) => withEn({ id: q.id, category: q.category, question: q.question, hint: q.hint || "", draft: q.draft || "", en: q.en && typeof q.en === "object" ? q.en : undefined })),
       answers: s.answers && typeof s.answers === "object" ? s.answers : {},
     };
     save();
@@ -346,6 +370,28 @@
     state = fresh;
     save();
     refreshAll();
+  });
+
+  // ---------- language toggle ----------
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll(".lang-btn").forEach((b) => {
+      const on = b.dataset.lang === lang;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", String(on));
+    });
+  }
+  document.querySelectorAll(".lang-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.dataset.lang === lang) return;
+      flushAnswer();
+      lang = btn.dataset.lang;
+      try { localStorage.setItem(LANG_KEY, lang); } catch (e) { /* ignore */ }
+      applyLang();
+      renderCategoryOptions();
+      renderCard();
+      renderList();
+    });
   });
 
   // ---------- tabs ----------
@@ -369,5 +415,6 @@
     if (e.key === "ArrowLeft") prev();
   });
 
+  applyLang();
   refreshAll();
 })();
