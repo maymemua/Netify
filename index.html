@@ -78,10 +78,8 @@
       <div class="toolbar">
         <input id="search" type="search" placeholder="Tìm câu hỏi…">
         <button id="btn-add" class="primary">+ Thêm câu hỏi</button>
-        <button id="btn-export" class="ghost">Xuất JSON</button>
-        <button id="btn-import" class="ghost">Nhập JSON</button>
+        <button id="btn-backup" class="ghost">Sao lưu / Nhập</button>
         <button id="btn-reset" class="ghost danger">Khôi phục mặc định</button>
-        <input id="file-import" type="file" accept="application/json,.json" hidden>
       </div>
       <p id="manage-count" class="muted"></p>
       <ul id="question-list" class="qlist"></ul>
@@ -111,6 +109,31 @@
         <button type="submit" id="dlg-save" class="primary">Lưu</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="dlg-backup">
+    <h2>Sao lưu / Nhập dữ liệu</h2>
+    <p class="muted">Sao chép JSON để lưu lại, hoặc dán JSON đã lưu vào ô bên dưới rồi bấm Nhập (thay thế dữ liệu hiện tại).</p>
+    <textarea id="backup-text" class="backup-text" rows="8" spellcheck="false"></textarea>
+    <p id="backup-msg" class="muted" role="status"></p>
+    <div class="row">
+      <button id="backup-copy" class="ghost">Sao chép</button>
+      <button id="backup-download" class="ghost">Tải file</button>
+      <button id="backup-file" class="ghost">Chọn file…</button>
+      <div class="spacer"></div>
+      <button id="backup-close" class="ghost">Đóng</button>
+      <button id="backup-import" class="primary">Nhập</button>
+    </div>
+    <input id="file-import" type="file" accept="application/json,.json" hidden>
+  </dialog>
+
+  <dialog id="dlg-confirm">
+    <p id="confirm-msg"></p>
+    <div class="row">
+      <div class="spacer"></div>
+      <button id="confirm-no" class="ghost">Huỷ</button>
+      <button id="confirm-yes" class="primary">Đồng ý</button>
+    </div>
   </dialog>
 
   <script src="questions.js"></script>

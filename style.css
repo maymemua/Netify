@@ -11,7 +11,7 @@
   --warn: #b7791f;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #12151b;
     --surface: #1b2029;
     --text: #e6e9ef;
@@ -22,7 +22,21 @@
     --danger: #ff7b7b;
     --ok: #5fd39a;
     --warn: #f0b95a;
+    color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #12151b;
+    --surface: #1b2029;
+    --text: #e6e9ef;
+    --muted: #97a0b2;
+    --border: #2d3442;
+    --accent: #6f93ff;
+    --accent-text: #0e1220;
+    --danger: #ff7b7b;
+    --ok: #5fd39a;
+    --warn: #f0b95a;
+    color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -118,3 +132,6 @@ dialog h2 { margin: 0 0 12px; font-size: 18px; }
   .card { padding: 14px; }
   .card h2 { font-size: 19px; }
 }
+
+.backup-text { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; min-height: 160px; }
+#dlg-confirm p { margin: 0 0 4px; white-space: pre-wrap; }

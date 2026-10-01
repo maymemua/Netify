@@ -221,6 +221,19 @@
   }
   $("search").addEventListener("input", renderList);
 
+  // ---------- in-page confirm (native confirm() is unavailable in embedded viewers) ----------
+  function askConfirm(message) {
+    return new Promise((resolve) => {
+      const d = $("dlg-confirm");
+      $("confirm-msg").textContent = message;
+      const done = (v) => { d.close(); $("confirm-yes").onclick = $("confirm-no").onclick = null; d.onclose = null; resolve(v); };
+      $("confirm-yes").onclick = () => done(true);
+      $("confirm-no").onclick = () => done(false);
+      d.onclose = () => resolve(false);
+      d.showModal();
+    });
+  }
+
   // ---------- add / edit dialog ----------
   let editingId = null;
   const dlg = $("dlg");
@@ -264,9 +277,9 @@
     refreshAll(editingId ? currentId : focusId);
   });
 
-  $("dlg-delete").addEventListener("click", () => {
+  $("dlg-delete").addEventListener("click", async () => {
     const q = byId(editingId);
-    if (!q || !confirm(`Xoá câu hỏi này?\n\n${q.question}`)) return;
+    if (!q || !(await askConfirm(`Xoá câu hỏi này?\n\n${q.question}`))) return;
     flushAnswer();
     state.questions = state.questions.filter((x) => x.id !== editingId);
     delete state.answers[editingId];
@@ -281,41 +294,61 @@
     renderList();
   }
 
-  // ---------- export / import / reset ----------
-  $("btn-export").addEventListener("click", () => {
+  // ---------- backup / import / reset ----------
+  const backupDlg = $("dlg-backup");
+  const backupMsg = (m) => { $("backup-msg").textContent = m; };
+
+  $("btn-backup").addEventListener("click", () => {
     flushAnswer();
+    $("backup-text").value = JSON.stringify(state, null, 2);
+    backupMsg("");
+    backupDlg.showModal();
+  });
+  $("backup-close").addEventListener("click", () => backupDlg.close());
+
+  $("backup-copy").addEventListener("click", async () => {
+    const ta = $("backup-text");
+    ta.value = JSON.stringify(state, null, 2);
+    try { await navigator.clipboard.writeText(ta.value); backupMsg("Đã sao chép vào clipboard."); }
+    catch (e) { ta.select(); backupMsg("Không tự sao chép được. Đã chọn sẵn nội dung, hãy nhấn Ctrl/Cmd+C."); }
+  });
+
+  $("backup-download").addEventListener("click", () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "po-questions-" + new Date().toISOString().slice(0, 10) + ".json";
     a.click();
-    URL.revokeObjectURL(a.href);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    backupMsg("Nếu trình duyệt không tải được file, hãy dùng nút Sao chép.");
   });
 
-  $("btn-import").addEventListener("click", () => $("file-import").click());
+  $("backup-file").addEventListener("click", () => $("file-import").click());
   $("file-import").addEventListener("change", async (e) => {
     const file = e.target.files[0];
     e.target.value = "";
-    if (!file) return;
-    try {
-      const s = JSON.parse(await file.text());
-      const ok = s && Array.isArray(s.questions) && s.questions.every((q) =>
-        q && typeof q.id === "string" && typeof q.question === "string" && typeof q.category === "string");
-      if (!ok) throw new Error("bad shape");
-      if (!confirm(`Nhập ${s.questions.length} câu hỏi? Dữ liệu hiện tại sẽ bị thay thế.`)) return;
-      state = {
-        questions: s.questions.map((q) => ({ id: q.id, category: q.category, question: q.question, hint: q.hint || "", draft: q.draft || "" })),
-        answers: s.answers && typeof s.answers === "object" ? s.answers : {},
-      };
-      save();
-      refreshAll();
-    } catch (err) {
-      alert("File JSON không hợp lệ.");
-    }
+    if (file) $("backup-text").value = await file.text();
+    backupMsg(file ? "Đã đọc file. Bấm Nhập để áp dụng." : "");
   });
 
-  $("btn-reset").addEventListener("click", () => {
-    if (!confirm("Khôi phục 77 câu hỏi mặc định? Câu hỏi bạn đã thêm/sửa sẽ mất; câu trả lời của bạn với các câu mặc định được giữ lại.")) return;
+  $("backup-import").addEventListener("click", async () => {
+    let s;
+    try { s = JSON.parse($("backup-text").value); } catch (err) { backupMsg("JSON không hợp lệ."); return; }
+    const ok = s && Array.isArray(s.questions) && s.questions.every((q) =>
+      q && typeof q.id === "string" && typeof q.question === "string" && typeof q.category === "string");
+    if (!ok) { backupMsg("Dữ liệu thiếu id, nhóm hoặc câu hỏi."); return; }
+    backupDlg.close();
+    if (!(await askConfirm(`Nhập ${s.questions.length} câu hỏi? Dữ liệu hiện tại sẽ bị thay thế.`))) return;
+    state = {
+      questions: s.questions.map((q) => ({ id: q.id, category: q.category, question: q.question, hint: q.hint || "", draft: q.draft || "" })),
+      answers: s.answers && typeof s.answers === "object" ? s.answers : {},
+    };
+    save();
+    refreshAll();
+  });
+
+  $("btn-reset").addEventListener("click", async () => {
+    if (!(await askConfirm("Khôi phục 77 câu hỏi mặc định? Câu hỏi bạn đã thêm/sửa sẽ mất; câu trả lời của bạn với các câu mặc định được giữ lại."))) return;
     flushAnswer();
     const fresh = seedState();
     const ids = new Set(fresh.questions.map((q) => q.id));
