@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PO Interview Juggler</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>PO Interview Juggler</h1>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-view="practice" role="tab">Luyện tập</button>
+      <button class="tab" data-view="manage" role="tab">Quản lý câu hỏi</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Practice -->
+    <section id="view-practice" class="view">
+      <div class="toolbar">
+        <label>Nhóm
+          <select id="filter-category"></select>
+        </label>
+        <label>Hiển thị
+          <select id="filter-status">
+            <option value="all">Tất cả</option>
+            <option value="todo">Chưa trả lời</option>
+            <option value="draft">Đang nháp</option>
+            <option value="review">Cần luyện thêm</option>
+            <option value="done">Đã ổn</option>
+          </select>
+        </label>
+        <button id="btn-shuffle" class="ghost" title="Xáo lại bộ câu hỏi">🔀 Xáo lại</button>
+        <span id="deck-info" class="muted"></span>
+      </div>
+
+      <article id="card" class="card" hidden>
+        <div class="card-meta">
+          <span id="card-category" class="chip"></span>
+          <span id="card-status" class="chip status"></span>
+        </div>
+        <h2 id="card-question"></h2>
+
+        <label class="field">
+          <span>Câu trả lời của bạn</span>
+          <textarea id="answer" rows="7" placeholder="Gõ câu trả lời của bạn ở đây… (tự động lưu)"></textarea>
+        </label>
+        <div class="saved muted" id="saved-note"></div>
+
+        <div class="row">
+          <button id="btn-reveal" class="ghost">Xem gợi ý &amp; trả lời nháp</button>
+          <div class="spacer"></div>
+          <button id="btn-review" class="ghost">Cần luyện thêm</button>
+          <button id="btn-done" class="ghost">Đã ổn</button>
+        </div>
+
+        <div id="reveal" class="reveal" hidden>
+          <h3>Gợi ý</h3>
+          <p id="card-hint"></p>
+          <h3>Trả lời nháp / ghi chú</h3>
+          <p id="card-draft" class="pre"></p>
+        </div>
+
+        <div class="row nav">
+          <button id="btn-prev" class="ghost">← Câu trước</button>
+          <div class="spacer"></div>
+          <button id="btn-edit" class="ghost">Sửa câu hỏi</button>
+          <button id="btn-next" class="primary">Câu tiếp theo →</button>
+        </div>
+      </article>
+
+      <p id="empty-practice" class="muted empty" hidden>Không có câu hỏi nào khớp bộ lọc.</p>
+    </section>
+
+    <!-- Manage -->
+    <section id="view-manage" class="view" hidden>
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Tìm câu hỏi…">
+        <button id="btn-add" class="primary">+ Thêm câu hỏi</button>
+        <button id="btn-export" class="ghost">Xuất JSON</button>
+        <button id="btn-import" class="ghost">Nhập JSON</button>
+        <button id="btn-reset" class="ghost danger">Khôi phục mặc định</button>
+        <input id="file-import" type="file" accept="application/json,.json" hidden>
+      </div>
+      <p id="manage-count" class="muted"></p>
+      <ul id="question-list" class="qlist"></ul>
+    </section>
+  </main>
+
+  <dialog id="dlg">
+    <form method="dialog" id="dlg-form">
+      <h2 id="dlg-title">Câu hỏi</h2>
+      <label class="field"><span>Nhóm</span>
+        <input id="f-category" list="category-list" required>
+        <datalist id="category-list"></datalist>
+      </label>
+      <label class="field"><span>Câu hỏi</span>
+        <textarea id="f-question" rows="3" required></textarea>
+      </label>
+      <label class="field"><span>Gợi ý</span>
+        <textarea id="f-hint" rows="2"></textarea>
+      </label>
+      <label class="field"><span>Trả lời nháp / ghi chú</span>
+        <textarea id="f-draft" rows="6"></textarea>
+      </label>
+      <div class="row">
+        <button type="button" id="dlg-delete" class="ghost danger">Xoá</button>
+        <div class="spacer"></div>
+        <button type="button" id="dlg-cancel" class="ghost">Huỷ</button>
+        <button type="submit" id="dlg-save" class="primary">Lưu</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="questions.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
