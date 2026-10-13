@@ -22,6 +22,19 @@ CLAUDE_EFFORT = os.environ.get("VNSHOP_CLAUDE_EFFORT", "medium")
 GEMINI_MODEL = os.environ.get("VNSHOP_GEMINI_MODEL", "gemini-3-flash-preview")
 MAX_STEPS = 10
 
+# Model hiện trong ô chọn trên giao diện. Thêm/bớt bằng VNSHOP_GEMINI_MODELS / VNSHOP_CLAUDE_MODELS
+# (danh sách cách nhau bởi dấu phẩy, lấy đúng tên model trong AI Studio / Anthropic Console).
+GEMINI_CHOICES = {
+    "gemini-3.1-flash-lite": "Gemini 3.1 Flash Lite (nhanh, hạn mức miễn phí cao)",
+    "gemini-3-flash-preview": "Gemini 3 Flash",
+    "gemini-3.1-pro-preview": "Gemini 3.1 Pro (cần bật thanh toán)",
+}
+CLAUDE_CHOICES = {
+    "claude-opus-5-5": "Claude Opus 5.5",
+    "claude-sonnet-5-5": "Claude Sonnet 5.5",
+    "claude-haiku-5-5": "Claude Haiku 5.5",
+}
+
 # Giữ cố định: thay đổi system prompt hay danh sách tool giữa các lượt sẽ làm mất
 # prompt cache và làm thinking block của các lượt trước không còn hợp lệ.
 SYSTEM_PROMPT = """Bạn là trợ lý nghiệp vụ cho dự án VNSHOP (BO Admin, BO NCC, chính sách). \
@@ -58,22 +71,84 @@ def chat_mode():
     return "search"
 
 
-def friendly_error(exc, mode):
+# Model Gemini mà key thực sự gọi được, lấy từ Google lúc máy chủ khởi động (xem main.py).
+_discovered = {}
+_SKIP_GEMINI = ("tts", "image", "embedding", "audio", "live", "robotics", "computer-use", "native")
+
+
+def discover_gemini_models(client=None):
+    """Hỏi Google danh sách model sinh văn bản mà key gọi được -> {tên: tên hiển thị}."""
+    if client is None:
+        from google import genai
+        client = genai.Client()
+    found = {}
+    for m in client.models.list():
+        name = (m.name or "").removeprefix("models/")
+        if not name.startswith("gemini") or "generateContent" not in (m.supported_actions or []):
+            continue
+        if any(word in name for word in _SKIP_GEMINI):
+            continue
+        found[name] = m.display_name or name
+    return dict(sorted(found.items(), reverse=True))  # bản mới (số lớn) lên trước
+
+
+def set_discovered(mode, models):
+    _discovered[mode] = dict(models)
+
+
+def _env_list(name, defaults):
+    raw = os.environ.get(name)
+    if not raw:
+        return dict(defaults)
+    return {m.strip(): defaults.get(m.strip(), m.strip()) for m in raw.split(",") if m.strip()}
+
+
+def available_models():
+    """Các lựa chọn cho ô chọn model: [{mode, model, label}], lựa chọn mặc định đứng đầu."""
+    gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    claude_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+    options = []
+    for mode, enabled, default, choices in (
+            ("gemini", gemini_key, GEMINI_MODEL,
+             _env_list("VNSHOP_GEMINI_MODELS", _discovered.get("gemini") or GEMINI_CHOICES)),
+            ("claude", claude_key, CLAUDE_MODEL, _env_list("VNSHOP_CLAUDE_MODELS", CLAUDE_CHOICES))):
+        if not enabled:
+            continue
+        names = [default] + [m for m in choices if m != default]
+        options += [{"mode": mode, "model": m, "label": choices.get(m, m)} for m in names]
+    options.append({"mode": "search", "model": None, "label": "Tra cứu (không dùng AI)"})
+    default_mode = chat_mode()
+    options.sort(key=lambda o: o["mode"] != default_mode)  # sort ổn định: giữ thứ tự trong từng nhóm
+    return options
+
+
+def resolve_choice(mode=None, model=None):
+    """Kiểm tra lựa chọn từ giao diện (thiếu thì lấy mặc định). Trả về (mode, model) hoặc ValueError."""
+    mode = mode or chat_mode()
+    if mode == "search":
+        return "search", None
+    model = model or model_for(mode)
+    if any(o["mode"] == mode and o["model"] == model for o in available_models()):
+        return mode, model
+    raise ValueError(f"Model không có trong danh sách hoặc chưa có API key: {mode} {model}")
+
+
+def friendly_error(exc, mode, model=None):
     """Lỗi hay gặp từ API model -> câu tiếng Việt; lỗi khác giữ nguyên để dễ tra."""
     text = str(exc)
     code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
-    model = model_for(mode)
+    model = model or model_for(mode)
     hints = [
         ((429,), ("RESOURCE_EXHAUSTED", "rate_limit"),
          "Đã hết hạn mức gọi model {model} (theo phút hoặc theo ngày; xem tại https://ai.dev/rate-limit). "
          "Với key miễn phí: model Pro không được gọi; Gemini 3 Flash chỉ 5 lượt/phút, 20 lượt/ngày. "
-         "Có thể đặt VNSHOP_GEMINI_MODEL=gemini-3.1-flash-lite trong .env (hạn mức miễn phí cao hơn), "
+         "Hãy chọn model khác ở ô chọn model phía trên (vd Gemini 3.1 Flash Lite, hạn mức miễn phí cao hơn), "
          "hoặc bật thanh toán cho project chứa key."),
         ((401, 403), ("API_KEY_INVALID", "PERMISSION_DENIED", "authentication"),
          "API key không hợp lệ hoặc chưa được cấp quyền cho model {model}. Kiểm tra key trong .env."),
         ((404,), ("NOT_FOUND", "not_found"),
-         "Không tìm thấy model {model}: tên model có thể đã đổi. Đặt tên model khác trong .env "
-         "(VNSHOP_GEMINI_MODEL hoặc VNSHOP_CLAUDE_MODEL)."),
+         "Không tìm thấy model {model}: tên model có thể đã đổi. Chọn model khác ở ô chọn phía trên, "
+         "hoặc sửa danh sách VNSHOP_GEMINI_MODELS / VNSHOP_CLAUDE_MODELS trong .env."),
     ]
     for codes, markers, message in hints:
         if code in codes or any(m in text for m in markers):
@@ -94,20 +169,29 @@ async def _with_hints(db, question):
     return f"{question}\n\n(Ngữ cảnh: các câu hỏi tương tự trước đây đã tra như sau:\n{hints})"
 
 
-async def run_chat(db, question, conversation_id=None, client=None, mode=None):
+async def run_chat(db, question, conversation_id=None, client=None, mode=None, model=None):
     started = time.monotonic()
-    mode = mode or chat_mode()
+    if client is None:
+        try:
+            mode, model = resolve_choice(mode, model)
+        except ValueError as exc:
+            yield {"type": "error", "message": str(exc)}
+            return
+    elif mode != "search":
+        model = model or model_for(mode)  # test truyền client giả
+    provider = f"{mode}:{model}" if model else mode
     conv = await db.get_conversation(conversation_id) if conversation_id else None
-    # Lịch sử gửi model chỉ dùng lại khi cùng nhà cung cấp; đổi model thì bắt đầu lịch sử mới.
-    history = conv["api_messages"] if conv and conv.get("api_provider") == mode else []
+    # Lịch sử gửi model chỉ dùng lại khi cùng model; đổi model thì bắt đầu lịch sử mới
+    # (thinking block / thought signature gắn với model đã tạo ra chúng).
+    history = conv["api_messages"] if conv and conv.get("api_provider") == provider else []
     steps = []
     try:
         if mode == "claude":
-            gen = _claude_turn(db, question, history, steps, client)
+            gen = _claude_turn(db, question, history, steps, client, model=model)
         elif mode == "gemini":
             from .gemini import gemini_turn
             gen = gemini_turn(db, await _with_hints(db, question), history, steps, client,
-                              system_prompt=SYSTEM_PROMPT, model=GEMINI_MODEL, max_steps=MAX_STEPS)
+                              system_prompt=SYSTEM_PROMPT, model=model, max_steps=MAX_STEPS)
         else:
             gen = _search_turn(db, question, steps)
         answer, api_messages = "", history
@@ -117,17 +201,17 @@ async def run_chat(db, question, conversation_id=None, client=None, mode=None):
             else:
                 yield event
     except Exception as exc:
-        yield {"type": "error", "message": friendly_error(exc, mode)}
+        yield {"type": "error", "message": friendly_error(exc, mode, model)}
         return
     if answer is None:  # bị từ chối: không lưu lượt này
         return
-    conv_id, trace_id = await db.save_turn(conversation_id, question, answer, api_messages, mode, {
-        "mode": mode, "model": model_for(mode),
+    conv_id, trace_id = await db.save_turn(conversation_id, question, answer, api_messages, provider, {
+        "mode": mode, "model": model,
         "duration_ms": int((time.monotonic() - started) * 1000), "steps": steps})
     yield {"type": "done", "conversation_id": conv_id, "trace_id": trace_id}
 
 
-async def _claude_turn(db, question, history, steps, client):
+async def _claude_turn(db, question, history, steps, client, model=CLAUDE_MODEL):
     import anthropic
 
     client = client or anthropic.AsyncAnthropic()
@@ -137,16 +221,17 @@ async def _claude_turn(db, question, history, steps, client):
     answer_parts = []
     seq = 0
     for _ in range(MAX_STEPS):
+        # Server-side fallback chỉ có cho Opus/Sonnet/Fable; Haiku không có model dự phòng.
+        fallback = {} if "haiku" in model else {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"}
         async with client.beta.messages.stream(
-            model=CLAUDE_MODEL,
+            model=model,
             max_tokens=32000,
             system=SYSTEM_PROMPT,
             tools=tools,
             messages=messages,
             thinking={"type": "adaptive"},
             output_config={"effort": CLAUDE_EFFORT},
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
+            **fallback,
         ) as stream:
             async for event in stream:
                 if event.type == "text":

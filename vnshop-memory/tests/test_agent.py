@@ -57,7 +57,7 @@ class FakeClient:
 
 
 class FakeDB:
-    def __init__(self, history=None, provider="claude"):
+    def __init__(self, history=None, provider=f"claude:{agent.CLAUDE_MODEL}"):
         self.history = history or []
         self.provider = provider
         self.saved = None
@@ -154,6 +154,76 @@ class ClaudeLoopTest(unittest.TestCase):
         client = FakeClient([SimpleNamespace(stop_reason="refusal", content=[])])
         db = FakeDB()
         events = collect(agent.run_chat(db, "?", client=client, mode="claude"))
+        self.assertEqual([e["type"] for e in events], ["error"])
+        self.assertIsNone(db.saved)
+
+
+class ModelChoiceTest(unittest.TestCase):
+    def env(self, **values):
+        from unittest import mock
+        return mock.patch.dict(agent.os.environ, values, clear=True)
+
+    def test_choices_follow_available_keys(self):
+        with self.env(GEMINI_API_KEY="x"):
+            opts = agent.available_models()
+            self.assertEqual(opts[0], {"mode": "gemini", "model": agent.GEMINI_MODEL,
+                                       "label": agent.GEMINI_CHOICES[agent.GEMINI_MODEL]})
+            self.assertIn("gemini-3.1-flash-lite", [o["model"] for o in opts])
+            self.assertEqual(opts[-1]["mode"], "search")
+            self.assertNotIn("claude", {o["mode"] for o in opts})
+        with self.env():
+            self.assertEqual(agent.available_models(), [{"mode": "search", "model": None,
+                                                         "label": "Tra cứu (không dùng AI)"}])
+
+    def test_discovered_models_replace_builtin_list(self):
+        listing = [SimpleNamespace(name=n, display_name=d, supported_actions=acts) for n, d, acts in [
+            ("models/gemini-3.1-flash-lite", "Gemini 3.1 Flash Lite", ["generateContent", "countTokens"]),
+            ("models/gemini-3-flash-preview", "Gemini 3 Flash Preview", ["generateContent"]),
+            ("models/gemini-2.5-flash-preview-tts", "TTS", ["generateContent"]),
+            ("models/gemini-embedding-001", "Embedding", ["embedContent"]),
+            ("models/imagen-4.0", "Imagen", ["predict"]),
+        ]]
+        client = SimpleNamespace(models=SimpleNamespace(list=lambda: listing))
+        found = agent.discover_gemini_models(client)
+        self.assertEqual(list(found), ["gemini-3.1-flash-lite", "gemini-3-flash-preview"])
+        try:
+            agent.set_discovered("gemini", found)
+            with self.env(GEMINI_API_KEY="x"):
+                labels = {o["model"]: o["label"] for o in agent.available_models() if o["mode"] == "gemini"}
+            self.assertEqual(labels, {"gemini-3-flash-preview": "Gemini 3 Flash Preview",
+                                      "gemini-3.1-flash-lite": "Gemini 3.1 Flash Lite"})
+        finally:
+            agent._discovered.clear()
+
+    def test_custom_list_and_validation(self):
+        with self.env(GEMINI_API_KEY="x", VNSHOP_GEMINI_MODELS="gemini-9-flash, gemini-3.1-flash-lite"):
+            models = [o["model"] for o in agent.available_models() if o["mode"] == "gemini"]
+            self.assertEqual(models, [agent.GEMINI_MODEL, "gemini-9-flash", "gemini-3.1-flash-lite"])
+            self.assertEqual(agent.resolve_choice("gemini", "gemini-9-flash"), ("gemini", "gemini-9-flash"))
+            self.assertEqual(agent.resolve_choice(), ("gemini", agent.GEMINI_MODEL))
+            self.assertEqual(agent.resolve_choice("search", "whatever"), ("search", None))
+            with self.assertRaises(ValueError):
+                agent.resolve_choice("gemini", "not-in-list")
+            with self.assertRaises(ValueError):
+                agent.resolve_choice("claude", agent.CLAUDE_MODEL)  # chưa có key Anthropic
+
+    def test_switching_model_starts_fresh_history(self):
+        old = [{"role": "user", "content": "câu cũ"}, {"role": "assistant", "content": [{"type": "text", "text": "x"}]}]
+        client = FakeClient([text_response("ok")])
+        db = FakeDB(history=old, provider="claude:claude-opus-5-5")
+        collect(agent.run_chat(db, "câu mới", conversation_id="c1", client=client,
+                               mode="claude", model="claude-haiku-5-5"))
+        call = client.calls[0]
+        self.assertEqual(call["model"], "claude-haiku-5-5")
+        self.assertEqual(call["messages"], [{"role": "user", "content": "câu mới"}])
+        self.assertNotIn("fallbacks", call)  # Haiku không có server-side fallback
+        self.assertEqual(db.saved["provider"], "claude:claude-haiku-5-5")
+        self.assertEqual(db.saved["trace"]["model"], "claude-haiku-5-5")
+
+    def test_unknown_model_from_ui_is_rejected(self):
+        with self.env(GEMINI_API_KEY="x"):
+            db = FakeDB()
+            events = collect(agent.run_chat(db, "?", mode="gemini", model="gemini-does-not-exist"))
         self.assertEqual([e["type"] for e in events], ["error"])
         self.assertIsNone(db.saved)
 

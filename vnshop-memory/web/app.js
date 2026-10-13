@@ -11,6 +11,21 @@ const LABEL_COLORS = {
 };
 const OTHER_COLOR = "#9aa5b1";
 const PROVIDER_NAMES = { gemini: "Gemini", claude: "Claude" };
+const MODEL_KEY = "vnshop-memory:model";
+
+// Lựa chọn model: "mode|model". Nhớ trên trình duyệt (chỉ cho tiện, mất cũng không sao).
+function currentChoice() {
+  const [mode, model] = ($("#model-select").value || "|").split("|");
+  return { mode: mode || null, model: model || null };
+}
+
+function savedChoice() {
+  try { return localStorage.getItem(MODEL_KEY); } catch { return null; }
+}
+
+function saveChoice(value) {
+  try { localStorage.setItem(MODEL_KEY, value); } catch { /* chế độ riêng tư: bỏ qua */ }
+}
 const SUGGESTIONS = [
   "Luồng tạo đơn trả hàng NCC gồm những màn hình nào?",
   "Những trạng thái của đơn hàng và điều kiện chuyển trạng thái?",
@@ -357,7 +372,7 @@ async function send() {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, conversation_id: state.conversationId }),
+      body: JSON.stringify({ message: text, conversation_id: state.conversationId, ...currentChoice() }),
     });
     if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
     for await (const ev of sseEvents(res)) {
@@ -431,14 +446,21 @@ async function loadModules() {
 
 async function loadInfo() {
   const info = await api("/api/info");
-  const badge = $("#mode-badge");
-  if (info.model) {
-    badge.textContent = `${PROVIDER_NAMES[info.chat_mode]} · ${info.model}`;
-    badge.classList.add("ai");
-  } else {
-    badge.textContent = "Chế độ tra cứu (chưa có AI)";
-    badge.title = "Đặt GEMINI_API_KEY để bật trả lời bằng Gemini";
+  const select = $("#model-select");
+  const groups = {};
+  for (const o of info.models) {
+    const groupName = PROVIDER_NAMES[o.mode] || "Không dùng AI";
+    if (!groups[groupName]) groups[groupName] = el("optgroup", { label: groupName });
+    const label = o.mode === "search" ? o.label : `${o.label}${o.label === o.model ? "" : ` · ${o.model}`}`;
+    groups[groupName].append(el("option", { value: `${o.mode}|${o.model || ""}` }, label));
   }
+  select.replaceChildren(...Object.values(groups));
+  const saved = savedChoice();
+  if (saved && [...select.options].some((opt) => opt.value === saved)) select.value = saved;
+  select.title = info.models.some((o) => o.mode !== "search")
+    ? "Model dùng để trả lời câu hỏi tiếp theo"
+    : "Đặt GEMINI_API_KEY trong .env để bật trả lời bằng AI";
+  select.addEventListener("change", () => saveChoice(select.value));
   $("#build-info").textContent =
     `Graph build ${formatDate(info.built_at) || "?"} · ${info.nodes} node · ${info.rels} quan hệ · ${info.chunks} đoạn SRS`;
 }

@@ -5,7 +5,10 @@
 Không có đăng nhập: chỉ chạy trên máy cá nhân hoặc mạng nội bộ tin cậy.
 """
 
+import asyncio
 import json
+import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -18,7 +21,7 @@ from kg.env import load_env
 
 load_env()  # phải chạy trước khi import agent (đọc tên model từ biến môi trường)
 
-from .agent import chat_mode, model_for, run_chat  # noqa: E402
+from .agent import available_models, chat_mode, discover_gemini_models, model_for, run_chat, set_discovered  # noqa: E402
 from .db import GraphDB  # noqa: E402
 
 WEB = Path(__file__).resolve().parent.parent / "web"
@@ -28,6 +31,13 @@ WEB = Path(__file__).resolve().parent.parent / "web"
 async def lifespan(app):
     app.state.db = GraphDB()
     await app.state.db.init_schema()
+    if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
+        try:
+            models = await asyncio.wait_for(asyncio.to_thread(discover_gemini_models), timeout=20)
+            set_discovered("gemini", models)
+            logging.getLogger("uvicorn.error").info("Gemini models: %s", ", ".join(models))
+        except Exception as exc:  # không lấy được danh sách thì dùng danh sách có sẵn
+            logging.getLogger("uvicorn.error").warning("Không lấy được danh sách model Gemini: %s", exc)
     yield
     await app.state.db.close()
 
@@ -42,13 +52,15 @@ def db() -> GraphDB:
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     conversation_id: str | None = None
+    mode: str | None = None    # gemini | claude | search; bỏ trống = mặc định
+    model: str | None = None
 
 
 @app.get("/api/info")
 async def info():
     data = await db().info()
     mode = chat_mode()
-    return {**data, "chat_mode": mode, "model": model_for(mode)}
+    return {**data, "chat_mode": mode, "model": model_for(mode), "models": available_models()}
 
 
 @app.get("/api/search")
@@ -110,7 +122,8 @@ async def trace(trace_id: str):
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
     async def events():
-        async for event in run_chat(db(), req.message.strip(), req.conversation_id):
+        async for event in run_chat(db(), req.message.strip(), req.conversation_id,
+                                    mode=req.mode, model=req.model):
             yield f"event: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False, default=str)}\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream",

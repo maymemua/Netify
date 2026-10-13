@@ -112,6 +112,10 @@ Mở http://localhost:8000.
 - **Claude** (tuỳ chọn): đặt `$env:ANTHROPIC_API_KEY`. Model `claude-opus-5-5`;
   đổi bằng `VNSHOP_CLAUDE_MODEL`, `VNSHOP_CLAUDE_EFFORT`. Nếu có cả hai key, Gemini được dùng.
 - Có thể ép chế độ bằng `VNSHOP_CHAT_MODE` = `gemini`, `claude` hoặc `search`.
+- **Đổi model ngay trên giao diện:** ô chọn ở thanh trên cùng. Lúc khởi động, máy chủ hỏi Google danh sách
+  model mà key gọi được và đưa đúng các tên đó vào ô chọn (không lấy được thì dùng danh sách có sẵn).
+  Lựa chọn được nhớ trên trình duyệt. Đổi model giữa một hội thoại thì model mới bắt đầu lịch sử mới
+  (tin nhắn cũ vẫn hiện). Muốn tự định danh sách: `VNSHOP_GEMINI_MODELS=tên1,tên2` trong `.env`.
 
 **Dữ liệu gửi đi:** khi bật AI, nội dung các node và đoạn SRS mà AI tra được gửi tới Google (hoặc Anthropic).
 Theo điều khoản của Google, dữ liệu gửi qua gói **miễn phí** của Gemini API có thể được dùng để cải thiện

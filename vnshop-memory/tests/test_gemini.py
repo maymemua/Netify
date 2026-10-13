@@ -105,7 +105,7 @@ class GeminiLoopTest(unittest.TestCase):
 
         # Lịch sử lưu lại đọc ngược được và giữ signature của câu trả lời cuối.
         saved = db.saved
-        self.assertEqual(saved["provider"], "gemini")
+        self.assertEqual(saved["provider"], f"gemini:{agent.GEMINI_MODEL}")
         self.assertEqual(saved["answer"], "Màn hình A cập nhật trạng thái.")
         restored = [types.Content.model_validate(c) for c in saved["api_messages"]]
         self.assertEqual(restored[-1].parts[-1].thought_signature, b"sig-2")
@@ -114,14 +114,14 @@ class GeminiLoopTest(unittest.TestCase):
     def test_next_turn_replays_saved_history(self):
         db = FakeDB()
         collect(agent.run_chat(db, "câu 1", client=self.client(ANSWER_TURN), mode="gemini"))
-        db2 = FakeDB(history=db.saved["api_messages"], provider="gemini")
+        db2 = FakeDB(history=db.saved["api_messages"], provider=db.saved["provider"])
         collect(agent.run_chat(db2, "câu 2", conversation_id="c1", client=self.client(ANSWER_TURN), mode="gemini"))
         contents = MockGemini.requests[0]["body"]["contents"]
         self.assertEqual([c["role"] for c in contents], ["user", "model", "user"])
         self.assertEqual(contents[1]["parts"][-1]["thoughtSignature"], "c2lnLTI=")
 
     def test_history_from_other_provider_is_not_sent(self):
-        db = FakeDB(history=[{"role": "user", "content": "claude cũ"}], provider="claude")
+        db = FakeDB(history=[{"role": "user", "content": "claude cũ"}], provider=f"claude:{agent.CLAUDE_MODEL}")
         collect(agent.run_chat(db, "câu mới", conversation_id="c1", client=self.client(ANSWER_TURN), mode="gemini"))
         self.assertEqual(len(MockGemini.requests[0]["body"]["contents"]), 1)
 
