@@ -37,6 +37,13 @@ ANSWER_TURN = sse(
 BLOCKED_TURN = sse({"candidates": [{"finishReason": "SAFETY"}]})
 
 
+def rate_limited(delay):
+    body = json.dumps({"error": {"code": 429, "message": "You exceeded your current quota", "status": "RESOURCE_EXHAUSTED",
+                                 "details": [{"@type": "type.googleapis.com/google.rpc.RetryInfo",
+                                              "retryDelay": delay}]}}).encode()
+    return (429, "application/json", body)
+
+
 class MockGemini(BaseHTTPRequestHandler):
     responses = []
     requests = []
@@ -45,8 +52,11 @@ class MockGemini(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers["content-length"])))
         type(self).requests.append({"path": self.path, "body": body})
         out = type(self).responses.pop(0)
-        self.send_response(200)
-        self.send_header("content-type", "text/event-stream")
+        status, ctype = 200, "text/event-stream"
+        if isinstance(out, tuple):
+            status, ctype, out = out
+        self.send_response(status)
+        self.send_header("content-type", ctype)
         self.send_header("content-length", str(len(out)))
         self.end_headers()
         self.wfile.write(out)
@@ -114,6 +124,28 @@ class GeminiLoopTest(unittest.TestCase):
         db = FakeDB(history=[{"role": "user", "content": "claude cũ"}], provider="claude")
         collect(agent.run_chat(db, "câu mới", conversation_id="c1", client=self.client(ANSWER_TURN), mode="gemini"))
         self.assertEqual(len(MockGemini.requests[0]["body"]["contents"]), 1)
+
+    def test_per_minute_rate_limit_waits_and_retries(self):
+        from unittest import mock
+
+        from server import gemini
+
+        db = FakeDB()
+        with mock.patch.object(gemini.asyncio, "sleep", new=mock.AsyncMock()) as sleep:
+            events = collect(agent.run_chat(db, "câu 1", client=self.client(rate_limited("7s"), ANSWER_TURN),
+                                            mode="gemini"))
+        self.assertEqual([e["type"] for e in events], ["status", "token", "token", "done"])
+        sleep.assert_awaited_once_with(8)
+        self.assertEqual(len(MockGemini.requests), 2)
+        self.assertEqual(db.saved["answer"], "Màn hình A cập nhật trạng thái.")
+
+    def test_daily_rate_limit_fails_with_readable_message(self):
+        db = FakeDB()
+        events = collect(agent.run_chat(db, "câu 1", client=self.client(rate_limited("18939s")), mode="gemini"))
+        self.assertEqual([e["type"] for e in events], ["error"])
+        self.assertIn("hết hạn mức", events[0]["message"])
+        self.assertEqual(len(MockGemini.requests), 1)
+        self.assertIsNone(db.saved)
 
     def test_blocked_answer_is_not_saved(self):
         db = FakeDB()

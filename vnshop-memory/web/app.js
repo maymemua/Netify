@@ -348,6 +348,7 @@ async function send() {
   scrollDown();
 
   const rows = {};
+  let statusLine = null;
   let answer = "";
   let pending = false;
   const paint = () => { pending = false; renderMarkdown(bubble, answer); scrollDown(); };
@@ -370,9 +371,14 @@ async function send() {
           row.classList.add(ev.ok ? "ok" : "err");
           row.append(el("span", { class: "muted" }, `${ev.summary} · ${ev.duration_ms} ms`));
         }
+      } else if (ev.type === "status") {
+        if (!statusLine) { statusLine = el("div", { class: "muted status-line" }); stepsBox.after(statusLine); }
+        statusLine.textContent = ev.text;
+        scrollDown();
       } else if (ev.type === "graph") {
         showGraph(ev.ids);
       } else if (ev.type === "token") {
+        if (statusLine) { statusLine.remove(); statusLine = null; }
         answer += ev.text;
         if (!pending) { pending = true; requestAnimationFrame(paint); }
       } else if (ev.type === "done") {
@@ -386,6 +392,7 @@ async function send() {
   } catch (err) {
     root.append(el("div", { class: "bubble error" }, `Lỗi kết nối: ${err.message}`));
   } finally {
+    if (statusLine) statusLine.remove();
     paint();
     bubble.classList.remove("typing");
     if (!answer) bubble.remove();

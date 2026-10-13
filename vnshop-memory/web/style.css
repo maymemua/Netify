@@ -97,6 +97,7 @@ button.wide { width: 100%; }
 .step.err .dot { background: var(--err); }
 .step .name { font-family: ui-monospace, Consolas, monospace; }
 .step .arg { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.status-line { font-size: 13px; margin: 0 0 8px; }
 .msg-actions { margin-top: 6px; font-size: 13px; }
 .link { background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; }
 .typing::after { content: "▍"; animation: blink 1s steps(1) infinite; }

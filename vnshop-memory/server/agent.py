@@ -39,6 +39,8 @@ trích dẫn đúng câu chữ khi cần.
 docs_md/prd là PRD (yêu cầu sản phẩm, có thể là bản nháp); docs_md/api_job là đặc tả API và job. \
 Khi các nguồn mâu thuẫn, ưu tiên SRS và nói rõ chỗ khác nhau.
 - Trường notes trên quan hệ thường là điều kiện hoặc quy tắc nghiệp vụ, hãy dùng chúng.
+- Khi cần nhiều thông tin độc lập, gọi nhiều tool trong CÙNG một lượt (ví dụ search_entities và \
+search_docs cùng lúc, hoặc get_entity cho vài node một lúc) để giảm số lần gọi model.
 - Nếu graph không đủ thông tin, nói rõ phần nào chưa tìm thấy thay vì đoán.
 
 Trả lời bằng tiếng Việt, ngắn gọn, có cấu trúc. Cuối câu trả lời, liệt kê các file SRS nguồn \
@@ -63,9 +65,10 @@ def friendly_error(exc, mode):
     model = model_for(mode)
     hints = [
         ((429,), ("RESOURCE_EXHAUSTED", "rate_limit"),
-         "Đã hết hạn mức gọi model {model}. Nếu dùng key miễn phí: model Pro không có hạn mức miễn phí, "
-         "hãy bật thanh toán cho project chứa key, hoặc đặt VNSHOP_GEMINI_MODEL=gemini-3-flash-preview trong .env. "
-         "Nếu đã trả phí: chờ một lúc rồi hỏi lại."),
+         "Đã hết hạn mức gọi model {model} (theo phút hoặc theo ngày; xem tại https://ai.dev/rate-limit). "
+         "Với key miễn phí: model Pro không được gọi; Gemini 3 Flash chỉ 5 lượt/phút, 20 lượt/ngày. "
+         "Có thể đặt VNSHOP_GEMINI_MODEL=gemini-3.1-flash-lite trong .env (hạn mức miễn phí cao hơn), "
+         "hoặc bật thanh toán cho project chứa key."),
         ((401, 403), ("API_KEY_INVALID", "PERMISSION_DENIED", "authentication"),
          "API key không hợp lệ hoặc chưa được cấp quyền cho model {model}. Kiểm tra key trong .env."),
         ((404,), ("NOT_FOUND", "not_found"),

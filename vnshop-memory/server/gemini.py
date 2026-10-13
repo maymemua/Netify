@@ -5,9 +5,30 @@ Phải gửi lại nguyên vẹn mọi part của lượt model ở request sau,
 Vì vậy mọi part nhận được khi stream được giữ đúng thứ tự, không gộp hay bỏ part nào.
 """
 
+import asyncio
 import json
+import math
+import re
 
 from . import tools as T
+
+# Hạn mức theo phút (gói miễn phí chỉ 5–15 lượt/phút): chờ rồi thử lại.
+# Hạn mức theo ngày (chờ hàng giờ): báo lỗi luôn.
+RATE_LIMIT_RETRIES = 3
+MAX_WAIT_SECONDS = 70
+_RETRY_DELAY = re.compile(r"retryDelay['\"]?\s*[:=]\s*['\"]([\d.]+)s")
+
+
+def retry_after(exc):
+    """Số giây nên chờ nếu lỗi là vượt hạn mức theo phút; None nếu không nên thử lại."""
+    text = str(exc)
+    if getattr(exc, "code", None) != 429 and "RESOURCE_EXHAUSTED" not in text:
+        return None
+    m = _RETRY_DELAY.search(text)
+    delay = float(m.group(1)) if m else 15.0
+    if delay > MAX_WAIT_SECONDS:
+        return None
+    return math.ceil(delay) + 1
 
 # Lý do dừng nghĩa là câu trả lời bị chặn hoặc hỏng: báo lỗi và không lưu lượt này.
 _BLOCKED = {"SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII",
@@ -41,18 +62,31 @@ async def gemini_turn(db, prompt, history, steps, client=None, *, system_prompt,
 
     for _ in range(max_steps):
         parts, finish = [], None
-        stream = await client.aio.models.generate_content_stream(model=model, contents=contents, config=config)
-        async for chunk in stream:
-            if not chunk.candidates:
-                continue
-            cand = chunk.candidates[0]
-            if cand.finish_reason:
-                finish = cand.finish_reason.name if hasattr(cand.finish_reason, "name") else str(cand.finish_reason)
-            for part in (cand.content.parts if cand.content and cand.content.parts else []):
-                parts.append(part)
-                if part.text and not part.thought:
-                    answer_parts.append(part.text)
-                    yield {"type": "token", "text": part.text}
+        for attempt in range(RATE_LIMIT_RETRIES + 1):
+            try:
+                stream = await client.aio.models.generate_content_stream(
+                    model=model, contents=contents, config=config)
+                async for chunk in stream:
+                    if not chunk.candidates:
+                        continue
+                    cand = chunk.candidates[0]
+                    if cand.finish_reason:
+                        fr = cand.finish_reason
+                        finish = fr.name if hasattr(fr, "name") else str(fr)
+                    for part in (cand.content.parts if cand.content and cand.content.parts else []):
+                        parts.append(part)
+                        if part.text and not part.thought:
+                            answer_parts.append(part.text)
+                            yield {"type": "token", "text": part.text}
+                break
+            except Exception as exc:
+                wait = retry_after(exc)
+                # Đã nhận một phần câu trả lời thì không thử lại (tránh lặp chữ).
+                if parts or wait is None or attempt == RATE_LIMIT_RETRIES:
+                    raise
+                yield {"type": "status",
+                       "text": f"Gemini đang giới hạn số lượt gọi mỗi phút, chờ {wait} giây rồi thử lại…"}
+                await asyncio.sleep(wait)
 
         calls = [p.function_call for p in parts if p.function_call]
         if finish in _BLOCKED or not parts:
