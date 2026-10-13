@@ -47,7 +47,8 @@ NODE_TYPE_MAP = {
     "sys": "System", "system": "System", "he thong": "System",
     # Miền VNSHOP
     "payment": "Payment", "thanh toan": "Payment",
-    "tt": "Payment",  # GIẢ ĐỊNH: tt = thanh toán. Cần xác nhận.
+    "tt": "Payment",  # tt = thanh toán (đã xác nhận)
+    "hd": "Invoice", "hoa don": "Invoice", "invoice": "Invoice",  # hd = hoá đơn (đã xác nhận)
     "km": "Promotion", "khuyen mai": "Promotion", "promotion": "Promotion",
     "sp": "Product", "san pham": "Product", "product": "Product", "product variant": "Product",
     "attribute": "Product", "attributeset": "Product", "brand": "Product",
@@ -55,7 +56,7 @@ NODE_TYPE_MAP = {
     "inventory": "Inventory", "ton kho": "Inventory",
     "stocktransfer": "BusinessProcess",
     "carrier": "Shipping", "thong tin van chuyen": "Shipping", "van chuyen": "Shipping",
-    "kh": "Customer", "khach hang": "Customer", "customer": "Customer",  # GIẢ ĐỊNH: kh = khách hàng
+    "kh": "Customer", "khach hang": "Customer", "customer": "Customer",  # kh = khách hàng (đã xác nhận)
     "api": "System",
     "rule": "BusinessRule", "business logic": "BusinessRule", "logic": "BusinessRule",
     "logic xu ly": "BusinessRule", "quy tac": "BusinessRule",

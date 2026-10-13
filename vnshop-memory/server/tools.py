@@ -10,7 +10,7 @@ import time
 LABELS = ["Screen", "Function", "Feature", "Status", "Report", "Document", "BusinessObject",
           "Role", "System", "Payment", "Promotion", "Product", "Warehouse", "Order", "Supplier",
           "Notification", "Policy", "Log", "BusinessProcess", "BusinessRule", "Category",
-          "Inventory", "Shipping", "Customer", "Concept"]
+          "Inventory", "Shipping", "Customer", "Invoice", "Concept"]
 
 TOOLS = [
     {

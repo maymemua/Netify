@@ -143,8 +143,8 @@ mà graph hiện chưa có embedding; mô hình dữ liệu ở trên giữ cùn
 
 ## Giả định cần bạn xác nhận
 
-- `tt` → `Payment` (đoán là "thanh toán"); `kh` → `Customer` (đoán là "khách hàng").
-- `hd` (5 node) chưa map: "hoá đơn" hay "hợp đồng"?
+Đã xác nhận: `tt` = thanh toán (`Payment`), `kh` = khách hàng (`Customer`), `hd` = hoá đơn (`Invoice`).
+
 - `entity` → `BusinessObject` (vì `Entity` là label chung của mọi node).
 - Các quan hệ tiếng Việt ngoài 4 cái đã thấy trong báo cáo ("gọi API", "kiểm tra quy tắc",
   "có trạng thái", "kích hoạt") là đoán trước; xem `RELATION_VI_MAP`.
