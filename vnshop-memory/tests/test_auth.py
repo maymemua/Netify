@@ -30,7 +30,7 @@ class AuthTest(unittest.TestCase):
             self.assertEqual((r.status_code, r.headers["location"]), (303, "/login"))
             self.assertEqual(self.client.get("/api/search?q=x").status_code, 401)
             self.assertEqual(self.client.get("/static/app.js", follow_redirects=False).status_code, 303)
-            self.assertEqual(self.client.get("/healthz").json(), {"ok": True})
+            self.assertTrue(self.client.get("/healthz").json()["ok"])  # /healthz không cần đăng nhập
             self.assertIn("Mật khẩu", self.client.get("/login").text)
 
     def test_wrong_then_right_password(self):
