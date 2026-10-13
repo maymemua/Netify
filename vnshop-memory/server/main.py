@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .agent import MODEL, chat_mode, run_chat
+from .agent import chat_mode, model_for, run_chat
 from .db import GraphDB
 
 WEB = Path(__file__).resolve().parent.parent / "web"
@@ -44,7 +44,7 @@ class ChatRequest(BaseModel):
 async def info():
     data = await db().info()
     mode = chat_mode()
-    return {**data, "chat_mode": mode, "model": MODEL if mode == "claude" else None}
+    return {**data, "chat_mode": mode, "model": model_for(mode)}
 
 
 @app.get("/api/search")

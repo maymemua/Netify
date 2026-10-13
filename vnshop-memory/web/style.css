@@ -48,7 +48,7 @@ h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: v
 }
 .badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.badge.claude { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.badge.ai { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 .build { font-size: 12px; color: var(--muted); margin-left: auto; }
 .icon-btn { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
 .only-mobile { display: none; }
@@ -127,6 +127,9 @@ button.wide { width: 100%; }
 .rel { display: flex; gap: 6px; align-items: baseline; font-size: 13px; padding: 4px 0; border-bottom: 1px solid var(--border); }
 .rel .type { font-family: ui-monospace, Consolas, monospace; font-size: 11px; color: var(--muted); white-space: nowrap; }
 .rel .note { display: block; color: var(--muted); font-size: 12px; }
+.chunk { font-size: 13px; border-bottom: 1px solid var(--border); padding: 4px 0; }
+.chunk summary { cursor: pointer; }
+.chunk .excerpt { white-space: pre-wrap; margin-top: 4px; }
 pre.json { background: var(--code-bg); padding: 8px; border-radius: 6px; font-size: 12px; overflow-x: auto; }
 .trace-step { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; font-size: 13px; }
 .trace-step header { display: flex; justify-content: space-between; gap: 8px; }

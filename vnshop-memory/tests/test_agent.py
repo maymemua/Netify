@@ -57,18 +57,23 @@ class FakeClient:
 
 
 class FakeDB:
-    def __init__(self, history=None):
+    def __init__(self, history=None, provider="claude"):
         self.history = history or []
+        self.provider = provider
         self.saved = None
 
     async def get_conversation(self, conv_id):
-        return {"api_messages": list(self.history)} if conv_id else None
+        return {"api_messages": list(self.history), "api_provider": self.provider} if conv_id else None
 
     async def similar_questions(self, question):
         return []
 
     async def search(self, query, limit=8, label=None):
         return [{"id": "screen_1", "name": "Màn hình A", "label": "Screen", "score": 3.14159}]
+
+    async def search_docs(self, query, limit=5, path=None):
+        return [{"id": "c1", "path": "docs_md/a.md", "heading": "Màn hình A > Quy tắc",
+                 "text": "Chỉ duyệt khi đủ chứng từ.", "score": 1.0, "module": None, "entity_ids": ["screen_1"]}]
 
     async def entity(self, entity_id):
         if entity_id != "screen_1":
@@ -77,9 +82,9 @@ class FakeDB:
                 "relations": [{"id": "status_1", "rel": "UPDATES", "outgoing": True, "name": "Đã duyệt",
                                "label": "Status", "notes": ["khi bấm Duyệt"], "source_files": []}]}
 
-    async def save_turn(self, conv_id, question, answer, api_messages, trace):
+    async def save_turn(self, conv_id, question, answer, api_messages, provider, trace):
         self.saved = dict(conv_id=conv_id, question=question, answer=answer,
-                          api_messages=api_messages, trace=trace)
+                          api_messages=api_messages, provider=provider, trace=trace)
         return conv_id or "conv-new", "trace-1"
 
 
@@ -97,7 +102,7 @@ class ClaudeLoopTest(unittest.TestCase):
             text_response("Màn hình A cập nhật trạng thái."),
         ])
         db = FakeDB()
-        events = collect(agent.run_chat(db, "màn hình A làm gì?", client=client))
+        events = collect(agent.run_chat(db, "màn hình A làm gì?", client=client, mode="claude"))
         types = [e["type"] for e in events]
         self.assertEqual(types, ["tool_call", "tool_result", "tool_call", "tool_result", "graph", "token", "done"])
         self.assertTrue(all(e["ok"] for e in events if e["type"] == "tool_result"))
@@ -105,7 +110,7 @@ class ClaudeLoopTest(unittest.TestCase):
 
         # Request gửi Claude: system/tools cố định, thinking adaptive, fallback mặc định.
         first = client.calls[0]
-        self.assertEqual(first["model"], agent.MODEL)
+        self.assertEqual(first["model"], agent.CLAUDE_MODEL)
         self.assertEqual(first["thinking"], {"type": "adaptive"})
         self.assertEqual(first["fallbacks"], "default")
         self.assertEqual(first["betas"], ["server-side-fallback-2026-07-01"])
@@ -127,7 +132,7 @@ class ClaudeLoopTest(unittest.TestCase):
                {"role": "assistant", "content": [{"type": "text", "text": "trả lời cũ"}]}]
         client = FakeClient([text_response("ok")])
         db = FakeDB(history=old)
-        collect(agent.run_chat(db, "câu mới", conversation_id="c1", client=client))
+        collect(agent.run_chat(db, "câu mới", conversation_id="c1", client=client, mode="claude"))
         sent = client.calls[0]["messages"]
         self.assertEqual(sent[:2], old)
         self.assertEqual(sent[2], {"role": "user", "content": "câu mới"})
@@ -139,7 +144,7 @@ class ClaudeLoopTest(unittest.TestCase):
             text_response("Xin lỗi."),
         ])
         db = FakeDB()
-        events = collect(agent.run_chat(db, "?", client=client))
+        events = collect(agent.run_chat(db, "?", client=client, mode="claude"))
         results = [e for e in events if e["type"] == "tool_result"]
         self.assertEqual([r["ok"] for r in results], [False, False])
         sent_results = client.calls[1]["messages"][-1]["content"]
@@ -148,7 +153,7 @@ class ClaudeLoopTest(unittest.TestCase):
     def test_refusal_is_not_saved(self):
         client = FakeClient([SimpleNamespace(stop_reason="refusal", content=[])])
         db = FakeDB()
-        events = collect(agent.run_chat(db, "?", client=client))
+        events = collect(agent.run_chat(db, "?", client=client, mode="claude"))
         self.assertEqual([e["type"] for e in events], ["error"])
         self.assertIsNone(db.saved)
 
@@ -167,6 +172,7 @@ class SearchModeTest(unittest.TestCase):
                 agent.os.environ["VNSHOP_CHAT_MODE"] = old_env
         self.assertEqual(events[-1]["type"], "done")
         self.assertIn("Màn hình A", db.saved["answer"])
+        self.assertIn("Chỉ duyệt khi đủ chứng từ.", db.saved["answer"])
         self.assertEqual(db.saved["api_messages"], [])
         self.assertEqual(db.saved["trace"]["mode"], "search")
 

@@ -9,6 +9,7 @@ const LABEL_COLORS = {
   System: "#5c6bc0", BusinessObject: "#b5651d", Promotion: "#e76fbf", Role: "#00a3c4",
 };
 const OTHER_COLOR = "#9aa5b1";
+const PROVIDER_NAMES = { gemini: "Gemini", claude: "Claude" };
 const SUGGESTIONS = [
   "Luồng tạo đơn trả hàng NCC gồm những màn hình nào?",
   "Những trạng thái của đơn hàng và điều kiện chuyển trạng thái?",
@@ -25,7 +26,7 @@ function el(tag, attrs = {}, ...children) {
     else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
     else if (v !== undefined && v !== null) node.setAttribute(k, v);
   }
-  for (const c of children.flat()) {
+  for (const c of children.flat(Infinity)) {
     if (c === null || c === undefined || c === false) continue;
     node.append(c instanceof Node ? c : document.createTextNode(String(c)));
   }
@@ -46,6 +47,10 @@ function formatDate(iso) {
   if (!iso) return "";
   const [y, m, d] = iso.slice(0, 10).split("-");
   return `${d}/${m}/${y}`;
+}
+
+function stripHeading(text, heading) {
+  return heading && text.startsWith(heading) ? text.slice(heading.length).trimStart() : text;
 }
 
 function shortArgs(input) {
@@ -198,6 +203,13 @@ async function showEntity(id) {
     el("dl", { class: "kv" }, facts.flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, String(v))])),
     ent.properties ? el("details", {}, el("summary", {}, "Thuộc tính gốc"), el("pre", { class: "json" }, JSON.stringify(ent.properties, null, 2))) : null,
     ent.groups.length ? el("p", {}, el("strong", {}, "Nhóm: "), ent.groups.map((g) => g.name).join(", ")) : null,
+    ent.chunks && ent.chunks.length ? [
+      el("p", {}, el("strong", {}, `Đoạn SRS nhắc tới (${ent.chunks.length})`)),
+      ent.chunks.map((c) => el("details", { class: "chunk" },
+        el("summary", {}, c.heading || c.path),
+        el("div", { class: "muted" }, c.path),
+        el("div", { class: "excerpt" }, stripHeading(c.excerpt, c.heading)))),
+    ] : null,
     el("p", {}, el("strong", {}, `Quan hệ (${ent.relations.length})`)),
     relations,
     el("p", {}, el("button", { class: "link", onclick: () => { showTab("graph"); showGraph([ent.id]); } }, "Vẽ node này và hàng xóm"))));
@@ -219,7 +231,7 @@ async function showTrace(traceId) {
   view.replaceChildren(
     el("p", {}, el("strong", {}, "Câu hỏi: "), t.question),
     el("p", { class: "muted" },
-      `${t.mode === "claude" ? `Claude (${t.model})` : "Chế độ tra cứu"} · ${t.steps.length} bước · ${t.duration_ms < 1000 ? `${t.duration_ms} ms` : `${(t.duration_ms / 1000).toFixed(1)} giây`}`),
+      `${t.model ? `${PROVIDER_NAMES[t.mode]} (${t.model})` : "Chế độ tra cứu"} · ${t.steps.length} bước · ${t.duration_ms < 1000 ? `${t.duration_ms} ms` : `${(t.duration_ms / 1000).toFixed(1)} giây`}`),
     ...t.steps.map((s) => el("div", { class: "trace-step" },
       el("header", {},
         el("span", { class: "name" }, `${s.seq}. ${s.name}`),
@@ -412,15 +424,15 @@ async function loadModules() {
 async function loadInfo() {
   const info = await api("/api/info");
   const badge = $("#mode-badge");
-  if (info.chat_mode === "claude") {
-    badge.textContent = `Claude · ${info.model}`;
-    badge.classList.add("claude");
+  if (info.model) {
+    badge.textContent = `${PROVIDER_NAMES[info.chat_mode]} · ${info.model}`;
+    badge.classList.add("ai");
   } else {
     badge.textContent = "Chế độ tra cứu (chưa có AI)";
-    badge.title = "Đặt ANTHROPIC_API_KEY để bật trả lời bằng Claude";
+    badge.title = "Đặt GEMINI_API_KEY để bật trả lời bằng Gemini";
   }
   $("#build-info").textContent =
-    `Graph build ${formatDate(info.built_at) || "?"} · ${info.nodes} node · ${info.rels} quan hệ`;
+    `Graph build ${formatDate(info.built_at) || "?"} · ${info.nodes} node · ${info.rels} quan hệ · ${info.chunks} đoạn SRS`;
 }
 
 initGraph();

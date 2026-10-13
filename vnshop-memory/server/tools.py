@@ -4,6 +4,9 @@ Mỗi tool trả về (kết quả dạng dict, danh sách id node đã chạm t
 vẽ đồ thị trên giao diện và ghi cạnh :TOUCHED trong vết suy luận.
 """
 
+import json
+import time
+
 LABELS = ["Screen", "Function", "Feature", "Status", "Report", "Document", "BusinessObject",
           "Role", "System", "Payment", "Promotion", "Product", "Warehouse", "Order", "Supplier",
           "Notification", "Policy", "Log", "BusinessProcess", "Concept"]
@@ -28,10 +31,28 @@ TOOLS = [
         },
     },
     {
+        "name": "search_docs",
+        "description": (
+            "Tìm đoạn văn gốc trong tài liệu SRS (mô tả màn hình, bảng trường dữ liệu, quy tắc nghiệp vụ, "
+            "thông báo lỗi...). Dùng khi cần chi tiết hoặc trích dẫn mà graph không có. "
+            "Có thể giới hạn trong một file bằng path (lấy từ source_file của node)."),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Từ khoá, ví dụ 'điều kiện huỷ đơn trả hàng'"},
+                "path": {"type": "string", "description": "Chỉ tìm trong file này (tuỳ chọn)"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 10},
+            },
+            "required": ["query"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "get_entity",
         "description": (
             "Xem chi tiết một node: mô tả, thuộc tính, module, file SRS nguồn, và toàn bộ quan hệ "
-            "(DISPLAYS, CONTAINS, TRIGGERS, UPDATES, REQUIRES, NAVIGATES_TO...) tới node khác. "
+            "(DISPLAYS, CONTAINS, TRIGGERS, UPDATES, REQUIRES, NAVIGATES_TO...) tới node khác, "
+            "và vài đoạn SRS nhắc tới node (chunks). "
             "Trường 'notes' trên quan hệ thường chứa điều kiện/quy tắc nghiệp vụ."),
         "input_schema": {
             "type": "object",
@@ -107,6 +128,12 @@ async def run_tool(db, name, args):
             h["score"] = round(h["score"], 2)
         return {"results": hits}, [h["id"] for h in hits]
 
+    if name == "search_docs":
+        found = await db.search_docs(args["query"], limit=args.get("limit", 5), path=args.get("path"))
+        if found is None:
+            return {"results": [], "note": "Chưa nạp tài liệu SRS (chạy kg.load_docs)."}, []
+        return {"results": found}, [i for r in found for i in r["entity_ids"]]
+
     if name == "get_entity":
         ent = await db.entity(args["id"])
         if ent is None:
@@ -133,8 +160,8 @@ def summarize(name, result):
     """Một dòng mô tả kết quả, hiện trên thẻ tool ở giao diện."""
     if "error" in result:
         return result["error"]
-    if name == "search_entities":
-        return f"{len(result['results'])} kết quả"
+    if name in ("search_entities", "search_docs"):
+        return result.get("note") or f"{len(result['results'])} kết quả"
     if name == "get_entity":
         return f"{result['name']} — {len(result['relations'])} quan hệ"
     if name == "screen_flow":
@@ -142,3 +169,35 @@ def summarize(name, result):
     if name == "module_overview":
         return f"{len(result.get('modules') or result.get('entities') or [])} mục"
     return ""
+
+
+def _step(seq, name, args, ok, started, summary, touched):
+    return {"seq": seq, "name": name, "input_json": json.dumps(args, ensure_ascii=False),
+            "ok": ok, "duration_ms": int((time.monotonic() - started) * 1000),
+            "summary": summary, "touched": touched}
+
+
+async def call_tool(db, seq, block_id, name, args, steps):
+    """Chạy một tool, trả về (sự kiện, tool_result block, ids, kết quả hoặc None nếu lỗi)."""
+    started = time.monotonic()
+    error = validate_input(name, args)
+    if error:
+        steps.append(_step(seq, name, args, False, started, error, []))
+        return ({"type": "tool_result", "id": block_id, "name": name, "ok": False, "summary": error,
+                 "duration_ms": steps[-1]["duration_ms"]},
+                {"type": "tool_result", "tool_use_id": block_id, "is_error": True, "content": error}, [], None)
+    try:
+        result, touched = await run_tool(db, name, args)
+    except Exception as exc:  # lỗi Neo4j hoặc lỗi dữ liệu: báo lại cho model, không làm hỏng lượt chat
+        msg = f"Lỗi khi chạy tool: {exc}"
+        steps.append(_step(seq, name, args, False, started, msg, []))
+        return ({"type": "tool_result", "id": block_id, "name": name, "ok": False, "summary": msg,
+                 "duration_ms": steps[-1]["duration_ms"]},
+                {"type": "tool_result", "tool_use_id": block_id, "is_error": True, "content": msg}, [], None)
+    summary = summarize(name, result)
+    steps.append(_step(seq, name, args, "error" not in result, started, summary, touched))
+    return ({"type": "tool_result", "id": block_id, "name": name, "ok": "error" not in result,
+             "summary": summary, "duration_ms": steps[-1]["duration_ms"]},
+            {"type": "tool_result", "tool_use_id": block_id,
+             "content": json.dumps(result, ensure_ascii=False, default=str)},
+            touched, result)

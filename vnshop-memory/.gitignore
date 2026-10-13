@@ -2,6 +2,7 @@
 # Chỉ file mẫu đã ẩn danh được phép nằm trong repo.
 data/*
 !data/graph.sample.json
+!data/docs_md.sample/
 graph.json
 graph_index.json
 graph.backup.*.json
