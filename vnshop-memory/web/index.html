@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VNSHOP Memory</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/vendor/cytoscape.min.js"></script>
+  <script src="/static/vendor/marked.min.js"></script>
+  <script src="/static/vendor/purify.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon-btn only-mobile" id="toggle-sidebar" aria-label="Mở danh sách">☰</button>
+    <h1>VNSHOP Memory</h1>
+    <select class="model-select" id="model-select" aria-label="Chọn model trả lời"></select>
+    <span class="build" id="build-info"></span>
+    <div class="view-controls only-desktop" role="group" aria-label="Bố cục">
+      <button class="icon-btn" id="btn-sidebar" aria-pressed="true" title="Ẩn/hiện danh sách hội thoại">☰</button>
+      <button class="icon-btn" id="btn-panel" aria-pressed="true" title="Ẩn/hiện khung đồ thị">◎ Đồ thị</button>
+      <button class="icon-btn" id="btn-swap" title="Chuyển khung đồ thị sang bên kia">⇄</button>
+    </div>
+    <button class="icon-btn only-mobile" id="toggle-panel" aria-label="Mở đồ thị">◎</button>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <button class="primary wide" id="new-chat">+ Hội thoại mới</button>
+      <h2>Hội thoại</h2>
+      <ul class="list" id="conversations"></ul>
+      <h2>Module</h2>
+      <ul class="list" id="modules"></ul>
+      <p><a class="link" id="logout" href="/logout" hidden>Đăng xuất</a></p>
+    </aside>
+
+    <main class="chat">
+      <div class="messages" id="messages">
+        <div class="empty" id="empty-state">
+          <h2>Hỏi về nghiệp vụ VNSHOP</h2>
+          <p>Câu trả lời được tra từ knowledge graph SRS. Các node liên quan hiện ở khung đồ thị bên phải.</p>
+          <div class="suggestions" id="suggestions"></div>
+        </div>
+      </div>
+      <form class="composer" id="composer">
+        <textarea id="input" rows="2" placeholder="Ví dụ: Luồng tạo đơn trả hàng NCC gồm những màn hình nào?" required></textarea>
+        <button class="primary" type="submit" id="send">Gửi</button>
+      </form>
+    </main>
+
+    <section class="panel" id="panel">
+      <div class="panel-resizer" id="panel-resizer" role="separator" aria-orientation="vertical"
+           title="Kéo để đổi độ rộng (bấm đúp: về mặc định)"></div>
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="graph" class="active">Đồ thị</button>
+        <button role="tab" data-tab="entity">Chi tiết</button>
+        <button role="tab" data-tab="trace">Vết suy luận</button>
+      </nav>
+      <div class="tab-body active" data-tab="graph">
+        <form class="graph-search" id="graph-search">
+          <input id="graph-q" type="search" placeholder="Tìm node để vẽ…" autocomplete="off">
+        </form>
+        <div id="cy" aria-label="Đồ thị tri thức"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="tab-body" data-tab="entity" id="entity-view">
+        <p class="muted">Bấm một node trên đồ thị để xem chi tiết.</p>
+      </div>
+      <div class="tab-body" data-tab="trace" id="trace-view">
+        <p class="muted">Bấm “Xem vết suy luận” dưới một câu trả lời.</p>
+      </div>
+    </section>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

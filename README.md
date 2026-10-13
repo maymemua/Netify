@@ -7,3 +7,7 @@ Practice app for PO interview questions (Lending: cash loan / BNPL). Open `index
 
 Data lives in the browser's `localStorage`, so use *Xuất JSON* to back it up or move to another device.
 The seed questions come from the Notion page "Bộ câu hỏi phỏng vấn PO Lending (Cash loan / BNPL)" (`questions.js`).
+
+## vnshop-memory/
+
+Separate project: a Lenny's-Memory-style web app (chat + knowledge graph + reasoning traces) over the `/vnshop-query` graph in Neo4j. See `vnshop-memory/README.md`.
