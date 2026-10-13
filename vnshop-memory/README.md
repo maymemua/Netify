@@ -153,8 +153,8 @@ mật khẩu sẽ thấy chung danh sách hội thoại.
 
 ### Vercel
 
-`app.py` (điểm vào), `vercel.json` (thời gian chạy tối đa 300 giây, kèm thư mục `web`, `kg`, `server`)
-và `.vercelignore` đã có sẵn. Ứng dụng tự kết nối Neo4j ở request đầu tiên, nên không phụ thuộc
+`api/index.py` (điểm vào), `vercel.json` (mọi đường dẫn chuyển tới `api/index`, chạy tối đa 300 giây,
+kèm thư mục `web`, `kg`, `server`) và `.vercelignore` đã có sẵn. Ứng dụng tự kết nối Neo4j ở request đầu tiên, nên không phụ thuộc
 bước khởi động của máy chủ.
 
 1. Vào https://vercel.com, đăng nhập bằng GitHub, **Add New → Project**, chọn repo `maymemua/Netify`.
