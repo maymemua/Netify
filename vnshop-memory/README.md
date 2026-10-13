@@ -50,14 +50,14 @@ Dữ liệu thật **không** đưa lên repo hay cloud. Script chạy ngay trê
    ```powershell
    python -m kg.load_docs --docs "$G\docs_md" --graph "$G\graph.json" --dry-run
    ```
-   Kết quả cho biết số file, số đoạn, số ảnh và token Confluence (`atl_token`) đã bỏ,
+   Kết quả cho biết số file, số đoạn, số ảnh, token Confluence (`atl_token`) và email đã bỏ/che,
    và `graph_source_files_found_in_docs`: số file nguồn trong graph tìm thấy trong `docs_md`
    (nên gần bằng `graph_source_files`; nếu thấp hẳn là đường dẫn bị lệch, gửi kết quả cho tôi).
    Rồi nạp thật:
    ```powershell
    python -m kg.load_docs --docs "$G\docs_md" --wipe
    ```
-   Chỉ phần chữ được gửi lên: ảnh bị bỏ, `atl_token` bị che. Mỗi mục (H1–H4) thành một đoạn
+   Chỉ phần chữ được gửi lên: ảnh bị bỏ, `atl_token` và email bị che. Mỗi mục (H1–H4) thành một đoạn
    (`:Chunk`, tối đa 2.000 ký tự), nối với file nguồn và với node có tên xuất hiện trong đoạn.
 6. Truy vấn thử:
    ```powershell
@@ -143,7 +143,8 @@ mà graph hiện chưa có embedding; mô hình dữ liệu ở trên giữ cùn
 
 ## Giả định cần bạn xác nhận
 
-- `tt` → `Payment` (đoán là "thanh toán").
+- `tt` → `Payment` (đoán là "thanh toán"); `kh` → `Customer` (đoán là "khách hàng").
+- `hd` (5 node) chưa map: "hoá đơn" hay "hợp đồng"?
 - `entity` → `BusinessObject` (vì `Entity` là label chung của mọi node).
 - Các quan hệ tiếng Việt ngoài 4 cái đã thấy trong báo cáo ("gọi API", "kiểm tra quy tắc",
   "có trạng thái", "kích hoạt") là đoán trước; xem `RELATION_VI_MAP`.

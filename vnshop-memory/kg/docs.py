@@ -3,6 +3,7 @@
 Làm sạch:
 - bỏ ảnh (markdown ![..](..) và thẻ <img>): ảnh chưa dùng, link ảnh lại chứa token Confluence
 - che mọi atl_token=... còn sót trong link (token Confluence có thể còn hiệu lực)
+- che địa chỉ email
 """
 
 import hashlib
@@ -19,7 +20,7 @@ _IMG_MD = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 _IMG_HTML = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
 _ATL_TOKEN = re.compile(r"atl_token=[A-Za-z0-9_\-]+")
 _HEADING = re.compile(r"^(#{1,4})\s+(.*?)\s*#*\s*$")
-_EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
+_EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 
 
 @dataclass
@@ -29,7 +30,7 @@ class DocStats:
     chars: int = 0
     images_removed: int = 0
     atl_tokens_removed: int = 0
-    files_with_email: int = 0
+    emails_masked: int = 0
     empty_files: list = field(default_factory=list)
 
 
@@ -38,10 +39,13 @@ def clean(text, stats=None):
     images = len(_IMG_MD.findall(text)) + len(_IMG_HTML.findall(text))
     text = _IMG_HTML.sub("", _IMG_MD.sub("", text))
     text = _ATL_TOKEN.sub("atl_token=REDACTED", text)
+    emails = len(_EMAIL.findall(text))
+    text = _EMAIL.sub("[email]", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     if stats:
         stats.images_removed += images
         stats.atl_tokens_removed += tokens
+        stats.emails_masked += emails
     return text.strip()
 
 
@@ -103,8 +107,6 @@ def read_docs(docs_dir, prefix="docs_md"):
         rel = f"{prefix}/{file.relative_to(root).as_posix()}"
         raw = file.read_text(encoding="utf-8", errors="replace")
         stats.files += 1
-        if _EMAIL.search(raw):
-            stats.files_with_email += 1
         sections = chunk_markdown(clean(raw, stats))
         if not sections:
             stats.empty_files.append(rel)

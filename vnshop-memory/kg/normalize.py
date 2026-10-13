@@ -13,6 +13,7 @@ from . import schema_map as sm
 
 # Trường node đã xử lý riêng; các trường còn lại được giữ nguyên làm thuộc tính.
 _NODE_HANDLED = {"id", "label", "type", "description", "source_file", "properties"}
+_REL_WITH_NOTE = re.compile(r"^\s*([A-Za-z][A-Za-z0-9_]*)\s*\((.+)\)\s*$")
 _EDGE_HANDLED = {"source", "target", "relation", "type", "label", "source_file",
                  "description", "properties", "key"}
 
@@ -28,23 +29,35 @@ class Normalized:
 
 
 def _clean_path(value):
+    """Chuẩn hoá về dạng docs_md/...; bỏ phần đứng trước (vd 'Downloads/.../vnshop-graph/docs_md/...')."""
     if not isinstance(value, str) or not value.strip():
         return None
     path = value.strip().replace("\\", "/")
+    idx = path.rfind("docs_md/")
+    if idx > 0:
+        path = path[idx:]
     return path if path.lower().endswith(".md") else None
 
 
 def parse_source_path(path):
-    """docs_md/<area>/<module>/... -> (area, module_key, module_code, module_name)."""
+    """docs_md/<area>/<module>/... -> (area, module_key, module_code, module_name).
+
+    File nằm ngay trong <area>: nếu tên bắt đầu bằng số (trang mục lục của module, vd
+    bo_admin/1-ng-nhp.md) thì thuộc module đó, còn lại thuộc module mang tên <area>.
+    """
     parts = PurePosixPath(path).parts
     if parts and parts[0] == "docs_md":
         parts = parts[1:]
     if len(parts) < 2:
         return None, None, None, None
     area = parts[0]
-    if len(parts) < 3:
-        return area, None, None, None
-    folder = parts[1]
+    if len(parts) == 2:
+        stem = PurePosixPath(parts[1]).stem
+        if not re.match(r"^\d+-", stem):
+            return area, area, None, sm.AREA_NAMES.get(area, area)
+        folder = stem
+    else:
+        folder = parts[1]
     m = re.match(r"^(\d+)", folder)
     code = m.group(1) if m else None
     name = sm.BO_ADMIN_MODULES.get(code) if area == "bo_admin" and code else None
@@ -68,6 +81,13 @@ def _pick_relation(edge):
     Trả về (tên chuẩn, ghi chú tự do hoặc None, các giá trị thô).
     """
     raws = {k: edge.get(k) for k in ("relation", "type", "label") if edge.get(k)}
+    # "updates (Khóa)": tên quan hệ + ghi chú trong ngoặc.
+    paren_note = None
+    for key in ("relation", "label"):
+        m = _REL_WITH_NOTE.match(str(raws.get(key, "")))
+        if m:
+            raws[key] = m.group(1)
+            paren_note = m.group(2).strip()
     chosen = None
     for key in ("relation", "type", "label"):
         raw = raws.get(key)
@@ -80,11 +100,11 @@ def _pick_relation(edge):
             chosen = name
             break
     # `label` không phải tên quan hệ => là văn bản mô tả (điều kiện, ghi chú...).
-    note = None
+    note = paren_note
     label = raws.get("label")
     if label and sm.relation_name(label) is None:
         note = str(label)
-    return chosen, note, [f"{k}={v}" for k, v in raws.items()]
+    return chosen, note, [f"{k}={edge.get(k)}" for k in raws]
 
 
 def normalize(graph, index=None):

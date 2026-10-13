@@ -10,7 +10,7 @@ class CleanTest(unittest.TestCase):
     def test_removes_images_and_tokens(self):
         stats = D.DocStats()
         text = ("Trước ![a](x.png?atl_token=abc123) sau <img src='y.png'>\n"
-                "[link](https://wiki/x?atl_token=DEF456&b=1)")
+                "[link](https://wiki/x?atl_token=DEF456&b=1) liên hệ nguyen.van.a@vnpay.vn.")
         out = D.clean(text, stats)
         self.assertNotIn("abc123", out)
         self.assertNotIn("DEF456", out)
@@ -18,6 +18,9 @@ class CleanTest(unittest.TestCase):
         self.assertIn("atl_token=REDACTED", out)
         self.assertEqual(stats.images_removed, 2)
         self.assertEqual(stats.atl_tokens_removed, 2)
+        self.assertEqual(stats.emails_masked, 1)
+        self.assertNotIn("@vnpay", out)
+        self.assertIn("liên hệ [email].", out)
 
 
 class ChunkTest(unittest.TestCase):

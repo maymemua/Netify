@@ -79,6 +79,30 @@ class NormalizeSampleTest(unittest.TestCase):
     def test_modules_from_paths(self):
         self.assertEqual({m["key"] for m in self.data.modules}, {"bo_admin/module-mau"})
 
+    def test_real_world_variants(self):
+        graph = {
+            "nodes": [
+                {"id": "a", "label": "A", "type": "policy_concept",
+                 "source_file": "Downloads/6-qun-l-n-hng/vnshop-graph/docs_md/bo_admin/6-x/611-y.md"},
+                {"id": "b", "label": "B", "type": "Tồn kho"},
+                {"id": "c", "label": "C", "type": "BO Screen"},
+            ],
+            "links": [
+                {"source": "a", "target": "b", "label": "updates (Khóa)"},
+                {"source": "a", "target": "c", "relation": "tạo PO"},
+                {"source": "c", "target": "b", "type": "Nghiệp vụ", "label": "truy cập"},
+            ],
+        }
+        data = normalize(graph)
+        self.assertEqual(data.stats["unmapped_node_types"], {})
+        self.assertEqual([n["label"] for n in data.nodes], ["Policy", "Inventory", "Screen"])
+        self.assertEqual(data.nodes[0]["source_file"], "docs_md/bo_admin/6-x/611-y.md")
+        self.assertEqual(data.rels["UPDATES"][0]["notes"], ["Khóa"])
+        self.assertEqual(data.rels["UPDATES"][0]["raw"], ["label=updates (Khóa)"])
+        self.assertIn("CREATES", data.rels)
+        self.assertIn("ACCESSES", data.rels)
+        self.assertNotIn("RELATED_TO", data.rels)
+
     def test_dangling_and_unmapped(self):
         graph = {
             "nodes": [{"id": "a", "label": "A", "type": "kiểu lạ"}, {"id": "b", "label": "B"}],
@@ -106,7 +130,11 @@ class PathAndQueryTest(unittest.TestCase):
             parse_source_path("docs_md/bo_admin/6-qun-l-n-hng/611-tao-don.md"),
             ("bo_admin", "bo_admin/6-qun-l-n-hng", "6", "Đơn hàng"),
         )
-        self.assertEqual(parse_source_path("docs_md/policy/chinh-sach.md")[:2], ("policy", None))
+        self.assertEqual(parse_source_path("docs_md/policy/chinh-sach.md"),
+                         ("policy", "policy", None, "Chính sách"))
+        # Trang mục lục của module nằm ngay trong bo_admin thuộc về module đó.
+        self.assertEqual(parse_source_path("docs_md/bo_admin/12-qun-l-danh-mc.md"),
+                         ("bo_admin", "bo_admin/12-qun-l-danh-mc", "12", "Danh mục"))
 
     def test_build_fulltext_query(self):
         self.assertEqual(build_fulltext_query("là của"), None)

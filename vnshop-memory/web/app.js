@@ -7,6 +7,7 @@ const LABEL_COLORS = {
   Screen: "#2f7fd8", Function: "#e0892b", Status: "#8a63d2", Report: "#2a9d8f",
   Document: "#7a8699", Order: "#d1495b", Supplier: "#c9a227", Payment: "#3fa34d",
   System: "#5c6bc0", BusinessObject: "#b5651d", Promotion: "#e76fbf", Role: "#00a3c4",
+  BusinessRule: "#9c2f6b", Inventory: "#6b8e23",
 };
 const OTHER_COLOR = "#9aa5b1";
 const PROVIDER_NAMES = { gemini: "Gemini", claude: "Claude" };
