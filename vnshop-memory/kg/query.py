@@ -14,6 +14,7 @@ import os
 import re
 import sys
 
+from .env import load_env
 from . import schema_map as sm
 
 STOPWORDS = {sm.fold(w) for w in (
@@ -112,6 +113,7 @@ def main(argv=None):
     if not argv:
         print('Cách dùng: python -m kg.query "câu hỏi"', file=sys.stderr)
         return 2
+    load_env()
     from neo4j import GraphDatabase
 
     uri = os.environ.get("NEO4J_URI")

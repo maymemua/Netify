@@ -14,6 +14,7 @@ import os
 import sys
 from datetime import date, datetime, timezone
 
+from .env import load_env
 from . import schema_map as sm
 from .normalize import load_files
 
@@ -124,6 +125,7 @@ def main(argv=None):
     ap.add_argument("--wipe", action="store_true", help="xoá dữ liệu do script này quản lý trước khi nạp")
     args = ap.parse_args(argv)
 
+    load_env()
     data = load_files(args.graph, args.index)
     print(json.dumps(data.stats, ensure_ascii=False, indent=2))
     if args.dry_run:

@@ -14,8 +14,12 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .agent import chat_mode, model_for, run_chat
-from .db import GraphDB
+from kg.env import load_env
+
+load_env()  # phải chạy trước khi import agent (đọc tên model từ biến môi trường)
+
+from .agent import chat_mode, model_for, run_chat  # noqa: E402
+from .db import GraphDB  # noqa: E402
 
 WEB = Path(__file__).resolve().parent.parent / "web"
 

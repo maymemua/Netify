@@ -45,6 +45,11 @@ def _node_out(n, label):
 
 class GraphDB:
     def __init__(self, uri=None, user=None, password=None, database=None):
+        missing = [k for k in ("NEO4J_URI", "NEO4J_PASSWORD") if not os.environ.get(k)]
+        if missing and not (uri and password):
+            raise RuntimeError(
+                f"Thiếu {', '.join(missing)}. Đặt biến môi trường trong PowerShell "
+                "hoặc tạo file .env trong thư mục vnshop-memory (xem README).")
         self.driver = AsyncGraphDatabase.driver(
             uri or os.environ["NEO4J_URI"],
             auth=(user or os.environ.get("NEO4J_USERNAME", "neo4j"),

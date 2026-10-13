@@ -87,6 +87,11 @@ python -m kg.load_docs `
 
 ## Chạy giao diện web
 
+**Không muốn gõ lại biến môi trường mỗi lần:** tạo file `.env` trong thư mục `vnshop-memory`.
+Cách nhanh nhất là copy file thông tin kết nối Aura đã tải về (`Neo4j-xxxx-Created-....txt`) thành `.env`,
+rồi thêm dòng `GEMINI_API_KEY=...` nếu dùng Gemini. File `.env` đã nằm trong `.gitignore`, không bị đưa lên GitHub.
+Các lệnh `kg.load`, `kg.load_docs`, `kg.query` và máy chủ web đều tự đọc file này; biến đặt trong PowerShell được ưu tiên.
+
 Sau khi đã nạp (bước 4–5 ở trên), vẫn trong PowerShell với 3 biến `NEO4J_*`:
 
 ```powershell

@@ -22,6 +22,7 @@ import re
 import sys
 from dataclasses import asdict, fields
 
+from .env import load_env
 from .docs import DocStats, read_docs
 from .load import _chunks
 from .normalize import parse_source_path
@@ -93,6 +94,7 @@ def main(argv=None):
     ap.add_argument("--wipe", action="store_true", help="xoá các đoạn (:Chunk) đã nạp trước khi nạp lại")
     args = ap.parse_args(argv)
 
+    load_env()
     sources = []  # (thư mục, tiền tố đường dẫn)
     if args.docs:
         sources.append((args.docs, "docs_md"))
