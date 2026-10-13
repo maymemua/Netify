@@ -116,7 +116,8 @@ BO_ADMIN_MODULES = {
 }
 
 # Thư mục cấp 1 trong docs_md không chia module -> tên hiển thị.
-AREA_NAMES = {"bo_admin": "BO Admin", "bo_ncc": "BO NCC", "policy": "Chính sách", "policies": "Chính sách"}
+AREA_NAMES = {"bo_admin": "BO Admin", "bo_ncc": "BO NCC", "policy": "Chính sách", "policies": "Chính sách",
+              "api_job": "API & JOB", "prd": "PRD", "srs_fe": "SRS FE"}
 
 
 def node_label(raw_type):

@@ -54,5 +54,39 @@ class ReadDocsTest(unittest.TestCase):
         self.assertIn("nut mau 047", chunks[[c["path"].endswith("011.md") for c in chunks].index(True)]["text_folded"])
 
 
+
+class LoadDocsCliTest(unittest.TestCase):
+    def run_cli(self, *argv):
+        import contextlib
+        import io
+        import json
+
+        from kg import load_docs
+
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = load_docs.main(list(argv))
+        return code, (json.loads(out.getvalue()) if code == 0 else None), err.getvalue()
+
+    def test_multiple_sources_get_area_prefix(self):
+        code, summary, _ = self.run_cli(
+            "--source", f"bo_admin={SAMPLE_DOCS / 'bo_admin'}",
+            "--source", f"prd={SAMPLE_DOCS / 'bo_admin'}", "--dry-run")
+        self.assertEqual(code, 0)
+        self.assertEqual(set(summary["per_source"]), {"docs_md/bo_admin", "docs_md/prd"})
+        self.assertEqual(summary["files"], 4)
+        self.assertIn("prd/module-mau", summary["modules"])
+
+    def test_overlapping_sources_are_rejected(self):
+        code, _, err = self.run_cli("--docs", str(SAMPLE_DOCS),
+                                    "--source", f"bo_admin={SAMPLE_DOCS / 'bo_admin'}", "--dry-run")
+        self.assertEqual(code, 2)
+        self.assertIn("trùng", err)
+
+    def test_bad_source_name(self):
+        code, _, err = self.run_cli("--source", "Bo Admin=x", "--dry-run")
+        self.assertEqual(code, 2)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -35,6 +35,9 @@ Cách làm việc:
 khi câu hỏi về luồng màn hình, module_overview khi câu hỏi theo module.
 - Dùng search_docs để lấy chi tiết từ văn bản SRS (trường dữ liệu, quy tắc, thông báo lỗi) và \
 trích dẫn đúng câu chữ khi cần.
+- Đường dẫn tài liệu cho biết loại: docs_md/bo_admin, bo_ncc, srs_fe là SRS (đặc tả đã chốt); \
+docs_md/prd là PRD (yêu cầu sản phẩm, có thể là bản nháp); docs_md/api_job là đặc tả API và job. \
+Khi các nguồn mâu thuẫn, ưu tiên SRS và nói rõ chỗ khác nhau.
 - Trường notes trên quan hệ thường là điều kiện hoặc quy tắc nghiệp vụ, hãy dùng chúng.
 - Nếu graph không đủ thông tin, nói rõ phần nào chưa tìm thấy thay vì đoán.
 

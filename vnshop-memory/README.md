@@ -66,6 +66,25 @@ Dữ liệu thật **không** đưa lên repo hay cloud. Script chạy ngay trê
 
 Khi SRS thay đổi: chạy lại pipeline cũ (`pdf_to_md.py` → … → `graph.json`), rồi bước 4 và 5.
 
+**Tài liệu nằm ở nhiều thư mục** (vd bản xuất mới từ Confluence có BO Admin, BO NCC, API & JOB,
+PRD, SRS FE, còn Chính sách vẫn ở `docs_md` cũ): dùng `--source nhóm=thư_mục` nhiều lần thay cho `--docs`.
+Mỗi nhóm được nạp vào `docs_md/<nhóm>/...`. `--wipe` xoá mọi đoạn cũ, nên phải liệt kê **đủ** các nguồn muốn giữ.
+
+```powershell
+python -m kg.load_docs `
+  --source bo_admin="$NEW\<thư mục BO Admin>" `
+  --source bo_ncc="$NEW\<thư mục BO NCC>" `
+  --source api_job="$NEW\<thư mục API & JOB>" `
+  --source prd="$NEW\<thư mục PRD>" `
+  --source srs_fe="$NEW\<thư mục SRS FE>" `
+  --source policy="$G\docs_md\policy" `
+  --source policies="$G\docs_md\policies" `
+  --graph "$G\graph.json" --dry-run
+```
+
+Đoạn văn chỉ nối được với node trên sơ đồ khi đường dẫn file trùng với `source_file` trong graph
+(`graph_source_files_found_in_docs`); file mới vẫn tìm và trích dẫn được.
+
 ## Chạy giao diện web
 
 Sau khi đã nạp (bước 4–5 ở trên), vẫn trong PowerShell với 3 biến `NEO4J_*`:

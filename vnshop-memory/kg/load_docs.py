@@ -3,6 +3,10 @@
     python -m kg.load_docs --docs "C:\\...\\vnshop-graph\\docs_md" --dry-run
     python -m kg.load_docs --docs "C:\\...\\vnshop-graph\\docs_md" --wipe
 
+Nhiều nguồn cùng lúc (mỗi nguồn là một nhóm tài liệu, nạp vào docs_md/<nhóm>/...):
+    python -m kg.load_docs --source bo_admin="D:\\moi\\bo-admin" --source policy="C:\\cu\\docs_md\\policy" --wipe
+--wipe xoá TẤT CẢ đoạn đã nạp trước đó, nên phải liệt kê đủ mọi nguồn muốn giữ.
+
 Chạy SAU kg.load (cần graph để nối đoạn văn với node). Kết nối lấy từ NEO4J_URI,
 NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE như kg.load.
 
@@ -14,10 +18,11 @@ Mô hình:
 import argparse
 import json
 import os
+import re
 import sys
-from dataclasses import asdict
+from dataclasses import asdict, fields
 
-from .docs import read_docs
+from .docs import DocStats, read_docs
 from .load import _chunks
 from .normalize import parse_source_path
 
@@ -80,17 +85,46 @@ def main(argv=None):
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--docs", required=True, help="thư mục docs_md")
+    ap.add_argument("--docs", help="thư mục docs_md (bên trong có bo_admin, bo_ncc, policy...)")
+    ap.add_argument("--source", action="append", default=[], metavar="NHOM=THU_MUC",
+                    help="thêm một nhóm tài liệu, vd bo_admin=\"C:\\...\\bo-admin\"; dùng nhiều lần được")
     ap.add_argument("--dry-run", action="store_true", help="chỉ đọc, làm sạch, cắt đoạn và in thống kê")
     ap.add_argument("--graph", help="(tuỳ chọn, cho --dry-run) graph.json để kiểm tra file nguồn có khớp không")
     ap.add_argument("--wipe", action="store_true", help="xoá các đoạn (:Chunk) đã nạp trước khi nạp lại")
     args = ap.parse_args(argv)
 
-    if not os.path.isdir(args.docs):
-        print(f"Không thấy thư mục {args.docs}", file=sys.stderr)
+    sources = []  # (thư mục, tiền tố đường dẫn)
+    if args.docs:
+        sources.append((args.docs, "docs_md"))
+    for item in args.source:
+        area, sep, folder = item.partition("=")
+        if not sep or not re.fullmatch(r"[a-z0-9_]+", area):
+            print(f"--source phải có dạng nhom=thu_muc (nhóm viết thường, không dấu): {item!r}", file=sys.stderr)
+            return 2
+        sources.append((folder.strip().strip('"'), f"docs_md/{area}"))
+    if not sources:
+        print("Cần --docs hoặc ít nhất một --source.", file=sys.stderr)
         return 2
-    chunks, stats = read_docs(args.docs)
+    for folder, _ in sources:
+        if not os.path.isdir(folder):
+            print(f"Không thấy thư mục {folder}", file=sys.stderr)
+            return 2
+
+    chunks, stats = [], DocStats()
+    per_source = {}
+    for folder, prefix in sources:
+        part, part_stats = read_docs(folder, prefix=prefix)
+        chunks.extend(part)
+        per_source[prefix] = {"files": part_stats.files, "chunks": part_stats.chunks}
+        for f in fields(DocStats):
+            value = getattr(part_stats, f.name)
+            setattr(stats, f.name, getattr(stats, f.name) + value)
+    dupes = len(chunks) - len({c["id"] for c in chunks})
+    if dupes:
+        print(f"Có {dupes} đoạn trùng đường dẫn giữa các nguồn: kiểm tra lại --docs/--source.", file=sys.stderr)
+        return 2
     summary = asdict(stats)
+    summary["per_source"] = per_source
     summary["empty_files"] = summary["empty_files"][:20]
     summary["avg_chunk_chars"] = round(stats.chars / stats.chunks) if stats.chunks else 0
     summary["modules"] = sorted({parse_source_path(c["path"])[1] or "(không module)" for c in chunks})
