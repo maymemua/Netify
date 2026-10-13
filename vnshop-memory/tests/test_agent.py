@@ -158,6 +158,16 @@ class ClaudeLoopTest(unittest.TestCase):
         self.assertIsNone(db.saved)
 
 
+class FriendlyErrorTest(unittest.TestCase):
+    def test_quota_and_unknown(self):
+        class ClientError(Exception):
+            code = 429
+        msg = agent.friendly_error(ClientError("429 RESOURCE_EXHAUSTED ... free_tier ..."), "gemini")
+        self.assertIn("hết hạn mức", msg)
+        self.assertIn(agent.GEMINI_MODEL, msg)
+        self.assertEqual(agent.friendly_error(ValueError("boom"), "gemini"), "ValueError: boom")
+
+
 class SearchModeTest(unittest.TestCase):
     def test_search_mode_without_llm(self):
         db = FakeDB()

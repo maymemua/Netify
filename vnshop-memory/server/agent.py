@@ -56,6 +56,28 @@ def chat_mode():
     return "search"
 
 
+def friendly_error(exc, mode):
+    """Lỗi hay gặp từ API model -> câu tiếng Việt; lỗi khác giữ nguyên để dễ tra."""
+    text = str(exc)
+    code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+    model = model_for(mode)
+    hints = [
+        ((429,), ("RESOURCE_EXHAUSTED", "rate_limit"),
+         "Đã hết hạn mức gọi model {model}. Nếu dùng key miễn phí: model Pro không có hạn mức miễn phí, "
+         "hãy bật thanh toán cho project chứa key, hoặc đặt VNSHOP_GEMINI_MODEL=gemini-3-flash-preview trong .env. "
+         "Nếu đã trả phí: chờ một lúc rồi hỏi lại."),
+        ((401, 403), ("API_KEY_INVALID", "PERMISSION_DENIED", "authentication"),
+         "API key không hợp lệ hoặc chưa được cấp quyền cho model {model}. Kiểm tra key trong .env."),
+        ((404,), ("NOT_FOUND", "not_found"),
+         "Không tìm thấy model {model}: tên model có thể đã đổi. Đặt tên model khác trong .env "
+         "(VNSHOP_GEMINI_MODEL hoặc VNSHOP_CLAUDE_MODEL)."),
+    ]
+    for codes, markers, message in hints:
+        if code in codes or any(m in text for m in markers):
+            return message.format(model=model) + f"\n\n(Chi tiết: {type(exc).__name__} {code or ''})"
+    return f"{type(exc).__name__}: {text}"
+
+
 def model_for(mode):
     return {"gemini": GEMINI_MODEL, "claude": CLAUDE_MODEL}.get(mode)
 
@@ -92,7 +114,7 @@ async def run_chat(db, question, conversation_id=None, client=None, mode=None):
             else:
                 yield event
     except Exception as exc:
-        yield {"type": "error", "message": f"{type(exc).__name__}: {exc}"}
+        yield {"type": "error", "message": friendly_error(exc, mode)}
         return
     if answer is None:  # bị từ chối: không lưu lượt này
         return
