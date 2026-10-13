@@ -1,15 +1,16 @@
-# VNSHOP Memory – bước 1: đưa graph của /vnshop-query vào Neo4j
+# VNSHOP Memory
 
-Mục tiêu cuối: một giao diện kiểu [Lenny's Memory](https://github.com/neo4j-labs/agent-memory/tree/main/examples/lennys-memory)
-(chat + đồ thị + vết suy luận) cho nghiệp vụ VNSHOP. Thư mục này là **bước 1**:
-nạp `graph.json` mà skill `/vnshop-query` đang dùng vào Neo4j, chuẩn hoá schema,
-và có CLI truy vấn thay cho `query_vnshop.py`.
+Giao diện kiểu [Lenny's Memory](https://github.com/neo4j-labs/agent-memory/tree/main/examples/lennys-memory)
+cho nghiệp vụ VNSHOP: hỏi đáp (chat) + đồ thị tri thức + vết suy luận, chạy trên graph
+mà skill `/vnshop-query` đang dùng.
 
 ```
 kg/schema_map.py   bảng chuẩn hoá type node / tên quan hệ  ← sửa ở đây
 kg/normalize.py    đọc graph.json + graph_index.json, chuẩn hoá (không cần Neo4j)
 kg/load.py         nạp vào Neo4j (constraint, fulltext index bỏ dấu, module, group)
 kg/query.py        truy vấn từ dòng lệnh
+server/            backend FastAPI: API, agent Claude, lưu hội thoại + vết suy luận
+web/               giao diện (HTML/JS thuần, thư viện để sẵn trong web/vendor, không cần build)
 data/graph.sample.json   56 node mẫu đã ẩn danh, dùng cho test
 tests/             python -m unittest discover -s tests -t .
 ```
@@ -48,6 +49,47 @@ Dữ liệu thật **không** đưa lên repo hay cloud. Script chạy ngay trê
    python -m kg.query "luồng tạo đơn trả hàng NCC"
    ```
 
+## Chạy giao diện web
+
+Sau khi đã nạp graph (bước 4 ở trên), vẫn trong PowerShell với 3 biến `NEO4J_*`:
+
+```powershell
+python -m uvicorn server.main:app --port 8000
+```
+
+Mở http://localhost:8000.
+
+- **Không có API key**: chạy ở *chế độ tra cứu*: tìm node khớp nhất rồi trình bày quan hệ,
+  giống `/vnshop-query` nhưng có đồ thị. Không tốn tiền, không gửi dữ liệu ra ngoài.
+- **Có API key Claude**: đặt thêm `$env:ANTHROPIC_API_KEY = "sk-ant-..."` rồi chạy lại.
+  Claude tự gọi các tool tra graph (`search_entities`, `get_entity`, `screen_flow`,
+  `module_overview`) và viết câu trả lời có trích nguồn SRS. Mặc định dùng model
+  `claude-opus-5-5`, mức effort `medium`; đổi bằng `VNSHOP_MODEL`, `VNSHOP_EFFORT`.
+  Khi bật, nội dung các node mà Claude tra (tên, mô tả, quan hệ, đường dẫn file) được gửi tới API của Anthropic.
+- Có thể ép chế độ bằng `VNSHOP_CHAT_MODE=search` hoặc `claude`.
+
+Giao diện có:
+- **Chat**: mỗi câu trả lời kèm danh sách bước đã tra (tool, tham số, thời gian).
+- **Đồ thị**: các node vừa được tra hiện ngay; bấm để xem chi tiết, bấm đúp để mở rộng hàng xóm;
+  ô tìm kiếm để vẽ node bất kỳ; bấm một module ở cột trái để vẽ cả module.
+- **Chi tiết node**: loại, module, file SRS, thuộc tính gốc, toàn bộ quan hệ kèm ghi chú điều kiện.
+- **Vết suy luận**: từng bước agent đã làm cho một câu trả lời và các node đã chạm tới.
+- Hội thoại được lưu trong Neo4j, mở lại từ cột trái.
+
+**Không có đăng nhập.** Máy chủ chỉ nghe ở `127.0.0.1`; đừng mở ra mạng ngoài khi chưa thêm xác thực.
+
+### Ba loại memory (như neo4j-agent-memory)
+
+| Loại | Trong Neo4j |
+|---|---|
+| Long-term (tri thức) | graph nghiệp vụ do `kg.load` nạp |
+| Short-term (hội thoại) | `(:Conversation)-[:HAS_MESSAGE]->(:Message)`; lịch sử gửi Claude chỉ nối thêm, không sửa |
+| Reasoning (suy luận) | `(:Message)-[:HAS_TRACE]->(:ReasoningTrace)-[:HAS_STEP]->(:ToolCall)-[:TOUCHED]->(:Entity)` |
+
+Câu hỏi mới giống câu cũ (≥ 2 từ trùng) được kèm gợi ý "lần trước đã tra thế nào" cho Claude.
+Chưa dùng thư viện `neo4j-agent-memory`: thư viện này cần thêm model embedding,
+mà graph hiện chưa có embedding; mô hình dữ liệu ở trên giữ cùng ý tưởng để chuyển sang sau.
+
 ## Mô hình đồ thị trong Neo4j
 
 ```
@@ -83,8 +125,9 @@ Dữ liệu thật **không** đưa lên repo hay cloud. Script chạy ngay trê
 ## Bước tiếp theo
 
 1. Nạp nội dung `docs_md` thành node `Chunk` (chia theo heading) + embedding đa ngữ,
-   nối với `SourceDoc`, để agent trả lời dựa trên văn bản gốc chứ không chỉ tên node.
+   nối với `SourceDoc`, để câu trả lời dựa trên văn bản SRS gốc chứ không chỉ tên node.
    Trước khi làm phải xoá các chuỗi `atl_token=` trong `docs_md`.
-2. Backend FastAPI + PydanticAI + neo4j-agent-memory (short-term, reasoning memory),
-   chat qua SSE như Lenny demo.
-3. Frontend Next.js + NVL: chat, đồ thị luồng màn hình (`NAVIGATES_TO`), cây module, vết tool, ngày build graph.
+2. Thêm đăng nhập nếu muốn chia sẻ cho người khác dùng; deploy (backend + Neo4j Aura).
+3. Bộ câu hỏi kiểm thử 20–30 câu có đáp án để đo chất lượng trả lời.
+
+Thư viện trong `web/vendor/`: Cytoscape.js 3.30.2 (MIT), marked 12.0.2 (MIT), DOMPurify 3.1.6 (Apache-2.0/MPL-2.0).

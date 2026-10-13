@@ -10,4 +10,4 @@ The seed questions come from the Notion page "Bộ câu hỏi phỏng vấn PO L
 
 ## vnshop-memory/
 
-Separate project: loads the `/vnshop-query` knowledge graph into Neo4j as step 1 toward a Lenny's-Memory-style UI. See `vnshop-memory/README.md`.
+Separate project: a Lenny's-Memory-style web app (chat + knowledge graph + reasoning traces) over the `/vnshop-query` graph in Neo4j. See `vnshop-memory/README.md`.

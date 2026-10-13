@@ -1,0 +1,121 @@
+"""Máy chủ web VNSHOP Memory: API + giao diện tĩnh.
+
+    uvicorn server.main:app --port 8000      (mở http://localhost:8000)
+
+Không có đăng nhập: chỉ chạy trên máy cá nhân hoặc mạng nội bộ tin cậy.
+"""
+
+import json
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+
+from .agent import MODEL, chat_mode, run_chat
+from .db import GraphDB
+
+WEB = Path(__file__).resolve().parent.parent / "web"
+
+
+@asynccontextmanager
+async def lifespan(app):
+    app.state.db = GraphDB()
+    await app.state.db.init_schema()
+    yield
+    await app.state.db.close()
+
+
+app = FastAPI(title="VNSHOP Memory", lifespan=lifespan)
+
+
+def db() -> GraphDB:
+    return app.state.db
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=4000)
+    conversation_id: str | None = None
+
+
+@app.get("/api/info")
+async def info():
+    data = await db().info()
+    mode = chat_mode()
+    return {**data, "chat_mode": mode, "model": MODEL if mode == "claude" else None}
+
+
+@app.get("/api/search")
+async def search(q: str = Query(min_length=1), limit: int = Query(10, ge=1, le=50)):
+    return await db().search(q, limit=limit)
+
+
+@app.get("/api/entity/{entity_id}")
+async def entity(entity_id: str):
+    ent = await db().entity(entity_id)
+    if ent is None:
+        raise HTTPException(404, "Không có node này")
+    return ent
+
+
+@app.get("/api/graph")
+async def graph(ids: str = Query(min_length=1), expand: bool = True):
+    return await db().subgraph([i for i in ids.split(",") if i], expand=expand)
+
+
+@app.get("/api/modules")
+async def modules():
+    return await db().modules()
+
+
+@app.get("/api/modules/{module_key:path}/entities")
+async def module_entities(module_key: str, label: str | None = None):
+    return await db().module_entities(module_key, label, limit=200)
+
+
+@app.get("/api/conversations")
+async def conversations():
+    return await db().list_conversations()
+
+
+@app.get("/api/conversations/{conv_id}")
+async def conversation(conv_id: str):
+    conv = await db().get_conversation(conv_id)
+    if conv is None:
+        raise HTTPException(404, "Không có hội thoại này")
+    conv.pop("api_messages", None)
+    return conv
+
+
+@app.delete("/api/conversations/{conv_id}")
+async def delete_conversation(conv_id: str):
+    await db().delete_conversation(conv_id)
+    return {"ok": True}
+
+
+@app.get("/api/traces/{trace_id}")
+async def trace(trace_id: str):
+    t = await db().get_trace(trace_id)
+    if t is None:
+        raise HTTPException(404, "Không có vết suy luận này")
+    return t
+
+
+@app.post("/api/chat")
+async def chat(req: ChatRequest):
+    async def events():
+        async for event in run_chat(db(), req.message.strip(), req.conversation_id):
+            yield f"event: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False, default=str)}\n\n"
+
+    return StreamingResponse(events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+app.mount("/static", StaticFiles(directory=WEB), name="static")
+
+
+@app.get("/")
+async def index():
+    return FileResponse(WEB / "index.html")
