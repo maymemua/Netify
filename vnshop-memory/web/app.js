@@ -55,6 +55,7 @@ function renderMarkdown(target, text) {
 
 async function api(path, options) {
   const res = await fetch(path, options);
+  if (res.status === 401) { window.location.href = "/login"; throw new Error("Cần đăng nhập"); }
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
   return res.json();
 }
@@ -374,6 +375,7 @@ async function send() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: text, conversation_id: state.conversationId, ...currentChoice() }),
     });
+    if (res.status === 401) { window.location.href = "/login"; return; }
     if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
     for await (const ev of sseEvents(res)) {
       if (ev.type === "tool_call") {
@@ -467,6 +469,7 @@ async function loadInfo() {
     ? "Model dùng để trả lời câu hỏi tiếp theo"
     : "Đặt GEMINI_API_KEY trong .env để bật trả lời bằng AI";
   select.addEventListener("change", () => saveChoice(select.value));
+  if (info.auth) $("#logout").hidden = false;
   $("#build-info").textContent =
     `Graph build ${formatDate(info.built_at) || "?"} · ${info.nodes} node · ${info.rels} quan hệ · ${info.chunks} đoạn SRS`;
 }

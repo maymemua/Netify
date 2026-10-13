@@ -12,8 +12,8 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -22,6 +22,7 @@ from kg.env import load_env
 load_env()  # phải chạy trước khi import agent (đọc tên model từ biến môi trường)
 
 from .agent import available_models, chat_mode, discover_gemini_models, model_for, run_chat, set_discovered  # noqa: E402
+from . import auth  # noqa: E402
 from .db import GraphDB  # noqa: E402
 
 WEB = Path(__file__).resolve().parent.parent / "web"
@@ -43,6 +44,27 @@ async def lifespan(app):
 
 
 app = FastAPI(title="VNSHOP Memory", lifespan=lifespan)
+app.middleware("http")(auth.middleware)
+
+
+@app.get("/login")
+async def login_form():
+    return auth.login_page() if auth.password() else RedirectResponse("/", status_code=303)
+
+
+@app.post("/login")
+async def login(request: Request):
+    return await auth.login(request)
+
+
+@app.get("/logout")
+async def logout():
+    return auth.logout()
+
+
+@app.get("/healthz")
+async def healthz():
+    return {"ok": True}
 
 
 def db() -> GraphDB:
@@ -60,7 +82,8 @@ class ChatRequest(BaseModel):
 async def info():
     data = await db().info()
     mode = chat_mode()
-    return {**data, "chat_mode": mode, "model": model_for(mode), "models": available_models()}
+    return {**data, "chat_mode": mode, "model": model_for(mode), "models": available_models(),
+            "auth": auth.password() is not None}
 
 
 @app.get("/api/search")

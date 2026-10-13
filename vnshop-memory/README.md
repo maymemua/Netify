@@ -132,6 +132,23 @@ Giao diện có:
 
 **Không có đăng nhập.** Máy chủ chỉ nghe ở `127.0.0.1`; đừng mở ra mạng ngoài khi chưa thêm xác thực.
 
+## Đưa lên Internet
+
+Trang chứa tài liệu nội bộ, nên **bắt buộc đặt mật khẩu** trước khi đưa lên mạng:
+biến `VNSHOP_PASSWORD`. Khi có biến này, mọi trang và API đều cần đăng nhập (cookie 30 ngày,
+sai 5 lần thì khoá IP 10 phút, đổi mật khẩu là mọi phiên cũ mất hiệu lực). Mọi người dùng chung
+mật khẩu sẽ thấy chung danh sách hội thoại.
+
+Ứng dụng đóng gói bằng `Dockerfile` trong thư mục này, chạy được trên các dịch vụ nhận Docker
+(Render, Google Cloud Run, Railway, Fly.io, Koyeb, máy chủ nội bộ...). Thiết lập chung:
+
+- Thư mục gốc (root directory / build context): `vnshop-memory`; build bằng `Dockerfile`.
+- Biến môi trường (đặt ở mục Environment / Secrets của dịch vụ, **không** đưa file `.env` lên):
+  `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`, `NEO4J_DATABASE`, `GEMINI_API_KEY`,
+  `VNSHOP_PASSWORD`; tuỳ chọn `VNSHOP_GEMINI_MODEL`, `VNSHOP_GEMINI_MODELS`.
+- Cổng: ứng dụng nghe ở biến `PORT` (mặc định 8000). Kiểm tra sống: `GET /healthz`.
+- Dịch vụ phải ra được Internet tới Neo4j Aura (cổng 7687) và Google Gemini.
+
 ### Ba loại memory (như neo4j-agent-memory)
 
 | Loại | Trong Neo4j |
