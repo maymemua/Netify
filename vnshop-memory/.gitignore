@@ -1,0 +1,17 @@
+# Dữ liệu SRS thật là tài liệu nội bộ: không commit.
+# Chỉ file mẫu đã ẩn danh được phép nằm trong repo.
+data/*
+!data/graph.sample.json
+graph.json
+graph_index.json
+graph.backup.*.json
+graph_index.backup.*.json
+docs_md/
+obsidian_vault/
+graphify-out/
+processed_json/
+prompt_*.txt
+out_*.json
+.env
+__pycache__/
+.venv/
