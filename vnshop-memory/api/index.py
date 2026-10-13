@@ -9,4 +9,15 @@ import sys
 # Thư mục vnshop-memory (chứa kg/, server/, web/) phải nằm trong sys.path.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from server.main import app  # noqa: E402,F401
+try:
+    from server.main import app  # noqa: F401
+except Exception as exc:  # nạp code lỗi (thiếu file/thư viện): hiện lỗi thay vì trang 500 trống
+    _error = f"{type(exc).__name__}: {exc}"
+
+    async def app(scope, receive, send):  # ASGI tối giản
+        if scope["type"] != "http":
+            return
+        body = f"VNSHOP Memory không khởi động được.\n\n{_error}\n".encode()
+        await send({"type": "http.response.start", "status": 500,
+                    "headers": [(b"content-type", b"text/plain; charset=utf-8")]})
+        await send({"type": "http.response.body", "body": body})

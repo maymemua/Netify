@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -58,7 +58,10 @@ async def ensure_ready():
 
 @asynccontextmanager
 async def lifespan(app):
-    await ensure_ready()
+    try:
+        await ensure_ready()
+    except Exception:  # không để lỗi kết nối làm sập cả ứng dụng; request /api/ sẽ báo lỗi cụ thể
+        log.exception("Chưa kết nối được Neo4j lúc khởi động")
     yield
     if getattr(app.state, "db", None) is not None:
         await app.state.db.close()
@@ -70,7 +73,14 @@ app = FastAPI(title="VNSHOP Memory", lifespan=lifespan)
 @app.middleware("http")
 async def ready(request: Request, call_next):
     if request.url.path.startswith("/api/"):
-        await ensure_ready()
+        try:
+            await ensure_ready()
+        except Exception as exc:
+            log.exception("Không kết nối được Neo4j")
+            return JSONResponse(status_code=503, content={
+                "detail": f"Không kết nối được Neo4j ({type(exc).__name__}: {exc}). "
+                          "Kiểm tra NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE "
+                          "và instance Aura đang chạy."})
     return await call_next(request)
 
 
@@ -95,7 +105,11 @@ async def logout():
 
 @app.get("/healthz")
 async def healthz():
-    return {"ok": True}
+    """Không cần đăng nhập. Chỉ báo có/không có cấu hình, không lộ giá trị."""
+    return {"ok": True,
+            "web_files": (WEB / "index.html").is_file(),
+            "neo4j_configured": all(os.environ.get(k) for k in ("NEO4J_URI", "NEO4J_PASSWORD")),
+            "password_set": auth.password() is not None}
 
 
 def db() -> GraphDB:
@@ -184,7 +198,8 @@ async def chat(req: ChatRequest):
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
-app.mount("/static", StaticFiles(directory=WEB), name="static")
+# check_dir=False: thiếu thư mục web (đóng gói lỗi) thì báo 404 cho từng file, không làm sập ứng dụng.
+app.mount("/static", StaticFiles(directory=WEB, check_dir=False), name="static")
 
 
 @app.get("/")
