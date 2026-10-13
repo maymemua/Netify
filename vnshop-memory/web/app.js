@@ -447,8 +447,14 @@ async function loadModules() {
 async function loadInfo() {
   const info = await api("/api/info");
   const select = $("#model-select");
+  // Máy chủ bản cũ (chưa khởi động lại sau khi cập nhật) không trả danh sách model.
+  const models = Array.isArray(info.models) ? info.models
+    : [{ mode: info.chat_mode, model: info.model, label: info.model || "Tra cứu (không dùng AI)" }];
+  if (!Array.isArray(info.models)) {
+    $("#build-info").title = "Máy chủ đang chạy bản cũ: dừng (Ctrl+C) rồi chạy lại uvicorn để có ô chọn model.";
+  }
   const groups = {};
-  for (const o of info.models) {
+  for (const o of models) {
     const groupName = PROVIDER_NAMES[o.mode] || "Không dùng AI";
     if (!groups[groupName]) groups[groupName] = el("optgroup", { label: groupName });
     const label = o.mode === "search" ? o.label : `${o.label}${o.label === o.model ? "" : ` · ${o.model}`}`;
@@ -457,7 +463,7 @@ async function loadInfo() {
   select.replaceChildren(...Object.values(groups));
   const saved = savedChoice();
   if (saved && [...select.options].some((opt) => opt.value === saved)) select.value = saved;
-  select.title = info.models.some((o) => o.mode !== "search")
+  select.title = models.some((o) => o.mode !== "search")
     ? "Model dùng để trả lời câu hỏi tiếp theo"
     : "Đặt GEMINI_API_KEY trong .env để bật trả lời bằng AI";
   select.addEventListener("change", () => saveChoice(select.value));
