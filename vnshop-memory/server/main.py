@@ -28,22 +28,53 @@ from .db import GraphDB  # noqa: E402
 WEB = Path(__file__).resolve().parent.parent / "web"
 
 
+log = logging.getLogger("uvicorn.error")
+_gemini_checked = False
+
+
+async def ensure_ready():
+    """Kết nối Neo4j và lấy danh sách model Gemini ở lần dùng đầu tiên.
+
+    Chạy lúc khởi động khi dùng uvicorn, hoặc ở request đầu tiên trên môi trường serverless
+    (Vercel) nơi bước khởi động có thể không được gọi. Kết nối Neo4j gắn với event loop đã
+    tạo ra nó, nên nếu môi trường chạy request trên loop khác thì tạo kết nối mới.
+    """
+    global _gemini_checked
+    loop = asyncio.get_running_loop()
+    if getattr(app.state, "db", None) is not None and app.state.db_loop is loop:
+        return
+    graph_db = GraphDB()
+    await graph_db.init_schema()
+    app.state.db, app.state.db_loop = graph_db, loop
+    if not _gemini_checked and (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")):
+        _gemini_checked = True
+        try:
+            models = await asyncio.wait_for(asyncio.to_thread(discover_gemini_models), timeout=15)
+            set_discovered("gemini", models)
+            log.info("Gemini models: %s", ", ".join(models))
+        except Exception as exc:  # không lấy được danh sách thì dùng danh sách có sẵn
+            log.warning("Không lấy được danh sách model Gemini: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app):
-    app.state.db = GraphDB()
-    await app.state.db.init_schema()
-    if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
-        try:
-            models = await asyncio.wait_for(asyncio.to_thread(discover_gemini_models), timeout=20)
-            set_discovered("gemini", models)
-            logging.getLogger("uvicorn.error").info("Gemini models: %s", ", ".join(models))
-        except Exception as exc:  # không lấy được danh sách thì dùng danh sách có sẵn
-            logging.getLogger("uvicorn.error").warning("Không lấy được danh sách model Gemini: %s", exc)
+    await ensure_ready()
     yield
-    await app.state.db.close()
+    if getattr(app.state, "db", None) is not None:
+        await app.state.db.close()
 
 
 app = FastAPI(title="VNSHOP Memory", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def ready(request: Request, call_next):
+    if request.url.path.startswith("/api/"):
+        await ensure_ready()
+    return await call_next(request)
+
+
+# Đăng ký sau nên chạy trước: chưa đăng nhập thì không chạm tới Neo4j.
 app.middleware("http")(auth.middleware)
 
 

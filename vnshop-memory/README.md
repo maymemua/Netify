@@ -124,6 +124,8 @@ sản phẩm của họ; với tài liệu nội bộ, hãy dùng key thuộc pr
 
 Giao diện có:
 - **Chat**: mỗi câu trả lời kèm danh sách bước đã tra (tool, tham số, thời gian).
+- **Bố cục**: nút trên thanh tiêu đề để ẩn/hiện danh sách và khung đồ thị, chuyển khung đồ thị sang trái/phải;
+  kéo cạnh khung để đổi độ rộng (bấm đúp: về mặc định). Trình duyệt nhớ bố cục.
 - **Đồ thị**: các node vừa được tra hiện ngay; bấm để xem chi tiết, bấm đúp để mở rộng hàng xóm;
   ô tìm kiếm để vẽ node bất kỳ; bấm một module ở cột trái để vẽ cả module.
 - **Chi tiết node**: loại, module, file SRS, thuộc tính gốc, đoạn SRS nhắc tới node, toàn bộ quan hệ kèm ghi chú điều kiện.
@@ -148,6 +150,22 @@ mật khẩu sẽ thấy chung danh sách hội thoại.
   `VNSHOP_PASSWORD`; tuỳ chọn `VNSHOP_GEMINI_MODEL`, `VNSHOP_GEMINI_MODELS`.
 - Cổng: ứng dụng nghe ở biến `PORT` (mặc định 8000). Kiểm tra sống: `GET /healthz`.
 - Dịch vụ phải ra được Internet tới Neo4j Aura (cổng 7687) và Google Gemini.
+
+### Vercel
+
+`app.py` (điểm vào), `vercel.json` (thời gian chạy tối đa 300 giây, kèm thư mục `web`, `kg`, `server`)
+và `.vercelignore` đã có sẵn. Ứng dụng tự kết nối Neo4j ở request đầu tiên, nên không phụ thuộc
+bước khởi động của máy chủ.
+
+1. Vào https://vercel.com, đăng nhập bằng GitHub, **Add New → Project**, chọn repo `maymemua/Netify`.
+2. **Root Directory**: `vnshop-memory`. Framework: để Vercel tự nhận (FastAPI / Other).
+3. **Environment Variables**: các biến ở mục trên (`NEO4J_*`, `GEMINI_API_KEY`, `VNSHOP_PASSWORD`).
+4. Code đang ở nhánh `claude/tender-clarke-f7jj3n`: hoặc merge PR trước, hoặc vào
+   Settings → Git → **Production Branch** và đặt nhánh này.
+5. **Deploy**, mở link `https://<tên>.vercel.app`, đăng nhập bằng `VNSHOP_PASSWORD`.
+
+Lưu ý: gói Hobby của Vercel chỉ dành cho dự án cá nhân, phi thương mại. Mỗi lần push lên nhánh đã chọn,
+Vercel tự triển khai lại.
 
 ### Ba loại memory (như neo4j-agent-memory)
 

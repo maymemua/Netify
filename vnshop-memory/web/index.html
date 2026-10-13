@@ -15,6 +15,11 @@
     <h1>VNSHOP Memory</h1>
     <select class="model-select" id="model-select" aria-label="Chọn model trả lời"></select>
     <span class="build" id="build-info"></span>
+    <div class="view-controls only-desktop" role="group" aria-label="Bố cục">
+      <button class="icon-btn" id="btn-sidebar" aria-pressed="true" title="Ẩn/hiện danh sách hội thoại">☰</button>
+      <button class="icon-btn" id="btn-panel" aria-pressed="true" title="Ẩn/hiện khung đồ thị">◎ Đồ thị</button>
+      <button class="icon-btn" id="btn-swap" title="Chuyển khung đồ thị sang bên kia">⇄</button>
+    </div>
     <button class="icon-btn only-mobile" id="toggle-panel" aria-label="Mở đồ thị">◎</button>
   </header>
 
@@ -43,6 +48,8 @@
     </main>
 
     <section class="panel" id="panel">
+      <div class="panel-resizer" id="panel-resizer" role="separator" aria-orientation="vertical"
+           title="Kéo để đổi độ rộng (bấm đúp: về mặc định)"></div>
       <nav class="tabs" role="tablist">
         <button role="tab" data-tab="graph" class="active">Đồ thị</button>
         <button role="tab" data-tab="entity">Chi tiết</button>

@@ -78,6 +78,7 @@ function shortArgs(input) {
 // ---------- tab và bố cục ----------
 
 function showTab(name) {
+  if (window.innerWidth > 1000 && !layoutPrefs.panel) { layoutPrefs.panel = true; applyLayout(); }
   document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   document.querySelectorAll(".tab-body").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   if (name === "graph") refitGraph();
@@ -101,6 +102,54 @@ function refitGraph() {
     state.cy.center(focus.nonempty() ? focus : undefined);
   }
 }
+
+// ---------- bố cục: ẩn/hiện, đổi bên, kéo độ rộng (nhớ trên trình duyệt) ----------
+
+const LAYOUT_KEY = "vnshop-memory:layout";
+const layoutPrefs = { sidebar: true, panel: true, side: "right", width: null };
+try { Object.assign(layoutPrefs, JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}")); } catch { /* bỏ qua */ }
+
+function applyLayout(save = true) {
+  document.body.classList.toggle("no-sidebar", !layoutPrefs.sidebar);
+  document.body.classList.toggle("no-panel", !layoutPrefs.panel);
+  document.body.classList.toggle("panel-left", layoutPrefs.side === "left");
+  $(".layout").style.setProperty("--panel-w", layoutPrefs.width ? `${layoutPrefs.width}px` : "42%");
+  $("#btn-sidebar").setAttribute("aria-pressed", String(layoutPrefs.sidebar));
+  $("#btn-panel").setAttribute("aria-pressed", String(layoutPrefs.panel));
+  $("#btn-swap").disabled = !layoutPrefs.panel;
+  if (save) { try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layoutPrefs)); } catch { /* bỏ qua */ } }
+  requestAnimationFrame(refitGraph);
+}
+
+$("#btn-sidebar").addEventListener("click", () => { layoutPrefs.sidebar = !layoutPrefs.sidebar; applyLayout(); });
+$("#btn-panel").addEventListener("click", () => { layoutPrefs.panel = !layoutPrefs.panel; applyLayout(); });
+$("#btn-swap").addEventListener("click", () => {
+  layoutPrefs.side = layoutPrefs.side === "left" ? "right" : "left";
+  applyLayout();
+});
+
+const resizer = $("#panel-resizer");
+resizer.addEventListener("dblclick", () => { layoutPrefs.width = null; applyLayout(); });
+resizer.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  resizer.setPointerCapture(e.pointerId);
+  document.body.classList.add("resizing");
+  const box = $(".layout").getBoundingClientRect();
+  const sidebarW = layoutPrefs.sidebar ? $("#sidebar").getBoundingClientRect().width : 0;
+  const onMove = (ev) => {
+    const raw = layoutPrefs.side === "left" ? ev.clientX - box.left - sidebarW : box.right - ev.clientX;
+    const max = box.width - sidebarW - 360;  // chừa tối thiểu 360px cho khung chat
+    layoutPrefs.width = Math.round(Math.max(280, Math.min(raw, max)));
+    applyLayout(false);
+  };
+  const onUp = () => {
+    resizer.removeEventListener("pointermove", onMove);
+    document.body.classList.remove("resizing");
+    applyLayout();
+  };
+  resizer.addEventListener("pointermove", onMove);
+  resizer.addEventListener("pointerup", onUp, { once: true });
+});
 
 $("#toggle-panel").addEventListener("click", () => {
   if ($("#panel").classList.contains("open")) $("#panel").classList.remove("open");
@@ -475,6 +524,7 @@ async function loadInfo() {
 }
 
 initGraph();
+applyLayout(false);
 Promise.all([loadInfo(), loadConversations(), loadModules()]).catch((err) => {
   $("#build-info").textContent = `Không kết nối được backend: ${err.message}`;
 });
