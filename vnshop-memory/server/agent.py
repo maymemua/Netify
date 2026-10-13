@@ -18,8 +18,8 @@ from . import tools as T
 
 CLAUDE_MODEL = os.environ.get("VNSHOP_CLAUDE_MODEL", "claude-opus-5-5")
 CLAUDE_EFFORT = os.environ.get("VNSHOP_CLAUDE_EFFORT", "medium")
-# gemini-3-pro-preview (Gemini 3.0 Pro) đã bị Google tắt; 3.1 Pro là bản thay thế.
-GEMINI_MODEL = os.environ.get("VNSHOP_GEMINI_MODEL", "gemini-3.1-pro-preview")
+# Flash có hạn mức miễn phí; Pro (gemini-3.1-pro-preview) chỉ dùng được khi project đã bật thanh toán.
+GEMINI_MODEL = os.environ.get("VNSHOP_GEMINI_MODEL", "gemini-3-flash-preview")
 MAX_STEPS = 10
 
 # Giữ cố định: thay đổi system prompt hay danh sách tool giữa các lượt sẽ làm mất

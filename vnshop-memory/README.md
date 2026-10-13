@@ -105,8 +105,9 @@ Mở http://localhost:8000.
 - **Gemini** (mặc định khi có key): tạo key ở [Google AI Studio](https://aistudio.google.com/apikey),
   đặt `$env:GEMINI_API_KEY = "..."` rồi chạy lại. Gemini tự gọi các tool (`search_entities`,
   `search_docs`, `get_entity`, `screen_flow`, `module_overview`) và viết câu trả lời có trích nguồn SRS.
-  Model mặc định `gemini-3.1-pro-preview`, vì Gemini 3.0 Pro (`gemini-3-pro-preview`) đã bị Google tắt
-  từ 03/2026. Đổi model bằng `VNSHOP_GEMINI_MODEL`, ví dụ `gemini-3-flash-preview` (rẻ và nhanh hơn).
+  Model mặc định `gemini-3-flash-preview` (có hạn mức miễn phí). Muốn dùng Pro thì bật thanh toán cho
+  project chứa key rồi đặt `VNSHOP_GEMINI_MODEL=gemini-3.1-pro-preview` trong `.env`
+  (Gemini 3.0 Pro `gemini-3-pro-preview` đã bị Google tắt từ 03/2026).
   Tên model của Google đổi khá nhanh: nếu báo lỗi 404, xem danh sách model hiện hành trong AI Studio.
 - **Claude** (tuỳ chọn): đặt `$env:ANTHROPIC_API_KEY`. Model `claude-opus-5-5`;
   đổi bằng `VNSHOP_CLAUDE_MODEL`, `VNSHOP_CLAUDE_EFFORT`. Nếu có cả hai key, Gemini được dùng.
