@@ -55,7 +55,10 @@ async def gemini_turn(db, prompt, history, steps, client=None, *, system_prompt,
 
     client = client or genai.Client()  # đọc GEMINI_API_KEY / GOOGLE_API_KEY
     config = _config(system_prompt)
-    contents = [types.Content.model_validate(c) for c in history]  # chỉ nối thêm
+    # Kết quả tool gửi với role "user": nhiều model Gemini từ chối role "tool" (400 INVALID_ARGUMENT).
+    # Lịch sử cũ đã lưu role "tool" cũng được đổi để hội thoại cũ hỏi tiếp được.
+    contents = [types.Content.model_validate({**c, "role": "user"} if c.get("role") == "tool" else c)
+                for c in history]  # chỉ nối thêm
     contents.append(types.Content(role="user", parts=[types.Part(text=prompt)]))
     answer_parts = []
     seq = 0
@@ -115,7 +118,7 @@ async def gemini_turn(db, prompt, history, steps, client=None, *, system_prompt,
                 id=call.id, name=call.name, response=payload)))
         if touched:
             yield {"type": "graph", "ids": list(dict.fromkeys(touched))}
-        contents.append(types.Content(role="tool", parts=responses))
+        contents.append(types.Content(role="user", parts=responses))
     else:
         answer_parts.append("\n\n_(Dừng vì đã gọi tool quá nhiều lần.)_")
 
