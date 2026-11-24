@@ -32,6 +32,30 @@ log = logging.getLogger("uvicorn.error")
 _gemini_checked = False
 
 
+def _transient(exc):
+    """Lỗi mạng thoáng qua (DNS, mất kết nối): đáng thử lại. Sai mật khẩu thì không."""
+    text = f"{type(exc).__name__} {exc}"
+    return any(s in text for s in ("DNS resolve", "resource busy", "ServiceUnavailable",
+                                   "SessionExpired", "Connection reset", "timed out"))
+
+
+async def _connect_with_retry(attempts=3):
+    for attempt in range(attempts):
+        graph_db = GraphDB()
+        try:
+            await graph_db.init_schema()
+            return graph_db
+        except Exception as exc:
+            try:
+                await graph_db.close()
+            except Exception:
+                pass
+            if attempt == attempts - 1 or not _transient(exc):
+                raise
+            log.warning("Neo4j chưa kết nối được (%s), thử lại lần %d", exc, attempt + 2)
+            await asyncio.sleep(1 + attempt)
+
+
 async def ensure_ready():
     """Kết nối Neo4j và lấy danh sách model Gemini ở lần dùng đầu tiên.
 
@@ -43,8 +67,16 @@ async def ensure_ready():
     loop = asyncio.get_running_loop()
     if getattr(app.state, "db", None) is not None and app.state.db_loop is loop:
         return
-    graph_db = GraphDB()
-    await graph_db.init_schema()
+    # Đổi event loop thì bỏ kết nối cũ: không đóng sẽ để lại connection pool treo, lâu dần
+    # cạn tài nguyên (DNS báo "Device or resource busy").
+    old = getattr(app.state, "db", None)
+    app.state.db = None
+    if old is not None:
+        try:
+            await asyncio.wait_for(old.close(), timeout=2)
+        except Exception:
+            pass
+    graph_db = await _connect_with_retry()
     app.state.db, app.state.db_loop = graph_db, loop
     if not _gemini_checked and (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")):
         _gemini_checked = True
