@@ -18,7 +18,7 @@ COOKIE = "vnshop_session"
 COOKIE_DAYS = 30
 MAX_FAILURES = 5
 FAILURE_WINDOW = 600
-PUBLIC_PATHS = {"/login", "/logout", "/healthz", "/static/style.css"}
+PUBLIC_PATHS = {"/login", "/logout", "/healthz", "/static/style.css", "/static/favicon.svg"}
 
 _failures = {}  # ip -> [thời điểm sai]
 
@@ -66,7 +66,7 @@ def _is_https(request):
 
 LOGIN_PAGE = """<!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VNSHOP Memory</title><link rel="stylesheet" href="/static/style.css"></head>
+<title>VNSHOP Memory</title><link rel="icon" type="image/svg+xml" href="/static/favicon.svg"><link rel="stylesheet" href="/static/style.css"></head>
 <body><main class="login">
   <form method="post" action="/login" class="login-card">
     <h1>VNSHOP Memory</h1>
