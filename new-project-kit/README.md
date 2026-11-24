@@ -16,6 +16,7 @@ from the start.
 | `docs/01-project-brief.md` | Goal, scope, phases, success metrics, lessons learned | PM, with AI drafts |
 | `docs/02-phase0-discovery.md` | Discovery template: users, questions, sources, constraints | PM fills in, AI synthesizes |
 | `docs/03-reference-architecture.md` | What we reuse from VNSHOP Memory and what we redo | AI assistant |
+| `docs/04-data-model.md` | Knowledge graph design: core model (drafted) + domain model (after discovery) | AI assistant, PM approves |
 | `docs/decision-log.md` | Every decision, with date and reason | AI assistant, on PM's decision |
 | `docs/ideas.md` | Ideas backlog, not yet planned | Anyone |
 
