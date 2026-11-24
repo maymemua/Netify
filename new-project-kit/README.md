@@ -17,6 +17,7 @@ from the start.
 | `docs/02-phase0-discovery.md` | Discovery template: users, questions, sources, constraints | PM fills in, AI synthesizes |
 | `docs/03-reference-architecture.md` | What we reuse from VNSHOP Memory and what we redo | AI assistant |
 | `docs/decision-log.md` | Every decision, with date and reason | AI assistant, on PM's decision |
+| `docs/ideas.md` | Ideas backlog, not yet planned | Anyone |
 
 ## How to work with the AI assistant
 1. Open this folder as the workspace in Antigravity. It reads `AGENTS.md` automatically.
