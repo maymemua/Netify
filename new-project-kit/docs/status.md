@@ -12,6 +12,24 @@
 | 3 | From the discovery doc, draft competency questions and a first ontology sketch | AI assistant | after #1 |
 | 4 | Propose success-metric targets for PM review | AI assistant | after #1 |
 
+## Who is doing what
+
+| Task | Owner (agent or person) | Branch | Started | State |
+|---|---|---|---|---|
+| | | | | |
+
+## Handoff notes (newest first)
+
+Copy this template for each note:
+
+```
+### [date] — [agent] — [task]
+- Done:
+- Next:
+- Blockers / questions for PM:
+- Branch / PR:
+```
+
 ## Open questions for PM
 - What is the new domain, and who are the users?
 - Which LLM providers and cloud services are approved for company data?

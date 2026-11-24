@@ -10,7 +10,8 @@ from the start.
 
 | File | Purpose | Who updates it |
 |---|---|---|
-| `AGENTS.md` | Rules for the AI project assistant (read automatically by Antigravity) | PM |
+| `AGENTS.md` | Rules for every AI agent, incl. the collaboration protocol (read automatically by Antigravity) | PM |
+| `CLAUDE.md` | Points Claude to `AGENTS.md`, so both agents follow the same rules | PM |
 | `docs/status.md` | Current phase, next actions, open questions | AI assistant, every session |
 | `docs/01-project-brief.md` | Goal, scope, phases, success metrics, lessons learned | PM, with AI drafts |
 | `docs/02-phase0-discovery.md` | Discovery template: users, questions, sources, constraints | PM fills in, AI synthesizes |
